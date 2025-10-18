@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pflanzenbewässerung - Dashboard</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header>
+        <div class="container header-container">
+            <h1>Pflanzenbewässerung</h1>
+            <div class="header-actions">
+                <div id="alert-indicator" class="alert-indicator" style="display: none;">
+                    <span class="material-icons">notifications</span>
+                    <span class="alert-count">0</span>
+                </div>
+                <a href="settings.html" class="settings-btn">
+                    <span class="material-icons">settings</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div id="alerts-banner" class="alerts-banner" style="display: none;"></div>
+        <section class="current-values">
+            <h2>Aktuelle Werte</h2>
+            <div class="plant-grid">
+                <div class="plant-card" id="plant-1">
+                    <span class="material-icons plant-icon">eco</span>
+                    <h3>Pflanze 1</h3>
+                    <div class="value">
+                        <span class="material-icons">water_drop</span>
+                        <span class="moisture-value">--</span>%
+                    </div>
+                    <div class="status" data-status="ok">OK</div>
+                </div>
+                <div class="plant-card" id="plant-2">
+                    <span class="material-icons plant-icon">eco</span>
+                    <h3>Pflanze 2</h3>
+                    <div class="value">
+                        <span class="material-icons">water_drop</span>
+                        <span class="moisture-value">--</span>%
+                    </div>
+                    <div class="status" data-status="ok">OK</div>
+                </div>
+                <div class="plant-card" id="plant-3">
+                    <span class="material-icons plant-icon">eco</span>
+                    <h3>Pflanze 3</h3>
+                    <div class="value">
+                        <span class="material-icons">water_drop</span>
+                        <span class="moisture-value">--</span>%
+                    </div>
+                    <div class="status" data-status="ok">OK</div>
+                </div>
+                <div class="plant-card" id="plant-4">
+                    <span class="material-icons plant-icon">eco</span>
+                    <h3 class="card-title">Pflanze 4</h3>
+                    <div class="value card-value">
+                        <span class="material-icons card-icon">water_drop</span>
+                        <span class="moisture-value">--</span>%
+                    </div>
+                    <div class="status" data-status="ok">OK</div>
+                </div>
+            </div>
+
+            <div class="environment-values">
+                <div class="env-card">
+                    <span class="material-icons">thermostat</span>
+                    <div>
+                        <div class="label">Lufttemperatur</div>
+                        <div class="value" id="air-temp">--°C</div>
+                    </div>
+                </div>
+                <div class="env-card">
+                    <span class="material-icons">water</span>
+                    <div>
+                        <div class="label">Wasserstand</div>
+                        <div class="value" id="water-level">-- L</div>
+                    </div>
+                </div>
+                <div class="env-card">
+                    <span class="material-icons">opacity</span>
+                    <div>
+                        <div class="label">Luftfeuchtigkeit</div>
+                        <div class="value" id="air-humidity">--%</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="charts">
+            <div class="charts-header">
+                <h2>Verlauf</h2>
+                <div class="time-range-selector">
+                    <button class="time-btn active" data-range="24h">24 Stunden</button>
+                    <button class="time-btn" data-range="3d">3 Tage</button>
+                    <button class="time-btn" data-range="7d">7 Tage</button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="moistureChart"></canvas>
+            </div>
+            <div class="chart-row">
+                <div class="chart-container-small">
+                    <canvas id="tempChart"></canvas>
+                </div>
+                <div class="chart-container-small">
+                    <canvas id="humidityChart"></canvas>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="self-test-status" class="self-test-status" title="Selbsttest-Status">
+        <span class="material-icons" id="self-test-icon">check_circle</span>
+    </div>
+
+    <div id="self-test-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Selbsttest-Details</h2>
+            <div id="self-test-details">
+                <p id="self-test-message">System läuft normal</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="supabase-client.js"></script>
+    <script>
+        // Check authentication before loading dashboard
+        if (window.supabaseClient) {
+            supabaseClient.auth.getSession().then(({ data: { session } }) => {
+                if (!session) {
+                    // Not logged in - redirect to auth page
+                    window.location.href = 'auth.html';
+                }
+            });
+        }
+    </script>
+    <script src="../static/js/dashboard.js"></script>
+</body>
+</html>
