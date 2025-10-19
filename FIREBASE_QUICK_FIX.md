@@ -46,7 +46,8 @@ Ihre Website zeigt einen "Permission denied" Fehler, weil die Firebase Realtime 
     },
     "historicalData": {
       ".read": true,
-      ".write": true
+      ".write": true,
+      ".indexOn": ["timestamp"]
     }
   }
 }
