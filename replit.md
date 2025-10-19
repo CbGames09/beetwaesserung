@@ -14,7 +14,7 @@ MVP (Minimum Viable Product) - Vollständig implementiert:
 Erweiterte Features - In Entwicklung:
 - ✅ Historische Datenspeicherung und Visualisierung (Recharts)
 - ✅ E-Mail-Benachrichtigungen für kritische Ereignisse
-- ⏳ Saisonale Pflanzenprofile
+- ✅ Saisonale Pflanzenprofile mit automatischer Schwellwert-Anpassung
 - ⏳ CSV-Datenexport
 - ⏳ Progressive Web App (PWA) mit Offline-Funktionalität
 
@@ -23,6 +23,7 @@ Erweiterte Features - In Entwicklung:
 Dieses Projekt ist ein IoT-basiertes automatisches Bewässerungssystem für 3-4 Pflanzen mit:
 - Echtzeit-Monitoring über eine Web-Oberfläche
 - Automatische Bewässerungssteuerung basierend auf Bodenfeuchtigkeit
+- Saisonale Bewässerungsprofile (Frühling, Sommer, Herbst, Winter)
 - Firebase Realtime Database für bidirektionale Kommunikation
 - E-Ink Display am ESP32 für Statusanzeige
 - Wöchentliche Systemtests
@@ -64,12 +65,16 @@ Dieses Projekt ist ein IoT-basiertes automatisches Bewässerungssystem für 3-4 
 │   │   │   ├── SystemTestCard.tsx
 │   │   │   ├── PINDialog.tsx
 │   │   │   ├── SettingsDialog.tsx
+│   │   │   ├── SeasonalScheduleEditor.tsx
+│   │   │   ├── HistoryDialog.tsx
 │   │   │   ├── ThemeProvider.tsx
 │   │   │   └── ThemeToggle.tsx
 │   │   ├── pages/
 │   │   │   └── Dashboard.tsx
 │   │   ├── lib/
-│   │   │   └── firebase.ts    # Firebase Konfiguration
+│   │   │   ├── firebase.ts    # Firebase Konfiguration
+│   │   │   ├── historicalData.ts
+│   │   │   └── seasonalUtils.ts
 │   │   └── App.tsx
 │   └── index.html
 ├── shared/
