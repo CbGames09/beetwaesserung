@@ -1,5 +1,6 @@
 ╔═══════════════════════════════════════════════════════════════════════════╗
 ║           ESP32-S3 PLANT WATERING SYSTEM - VERKABELUNGSDIAGRAMM           ║
+║                         *** AKTUALISIERT FÜR ESP32-S3 ***                 ║
 ╚═══════════════════════════════════════════════════════════════════════════╝
 
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -14,8 +15,11 @@
     └───┬──┘              └───┬──┘              └───┬──┘              └───┬──┘
         │                     │                     │                     │
         ▼                     ▼                     ▼                     ▼
-    GPIO 36               GPIO 39               GPIO 34               GPIO 35
-      (ADC1_CH0)            (ADC1_CH3)            (ADC1_CH6)            (ADC1_CH7)
+    GPIO 1                GPIO 2                GPIO 5                GPIO 6
+      (ADC1_CH0)            (ADC1_CH1)            (ADC1_CH4)            (ADC1_CH5)
+
+    ⚠️  WICHTIG: ESP32-S3 ADC1 = GPIO 1-10 (WiFi kompatibel!)
+                ADC2 = GPIO 11-20 funktioniert NICHT mit WiFi!
 
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                          DHT11 SENSOR                                     │
@@ -25,7 +29,7 @@
        ┌──────┐
        │ VCC  │───────────► 3.3V
        │      │
-       │ DATA │─────┬──────► GPIO 4
+       │ DATA │─────┬──────► GPIO 7
        │      │     │
        │ GND  │───┐ │
        └──────┘   │ │
@@ -39,14 +43,17 @@
       HC-SR04
      ┌────────┐
      │  VCC   │───────────► 5V
-     │  TRIG  │───────────► GPIO 5
+     │  TRIG  │───────────► GPIO 8
      │        │
      │  ECHO  │────┐
      │        │    │       SPANNUNGSTEILER (5V → 3.3V):
-     │  GND   │──┐ │       ┌─── 2kΩ ────┬──► GPIO 18 (3.3V)
+     │  GND   │──┐ │       ┌─── 2kΩ ────┬──► GPIO 9 (3.3V)
      └────────┘  │ └───────┤            │
                  │         └─── 1kΩ ────┴──► GND
                  └─────────────────────────► GND
+
+    ⚠️  WICHTIG: HC-SR04 ECHO gibt 5V aus!
+                Spannungsteiler ist ZWINGEND erforderlich!
 
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                    4-KANAL RELAIS + PUMPEN                                │
@@ -54,10 +61,10 @@
 
     ESP32                      RELAIS MODUL                    PUMPEN
   ┌────────┐                 ┌────────────┐
-  │ GPIO13 ├─────────────────┤ IN1        │
-  │ GPIO12 ├─────────────────┤ IN2        │
-  │ GPIO14 ├─────────────────┤ IN3        │
-  │ GPIO27 ├─────────────────┤ IN4        │
+  │ GPIO10 ├─────────────────┤ IN1        │
+  │ GPIO11 ├─────────────────┤ IN2        │
+  │ GPIO12 ├─────────────────┤ IN3        │
+  │ GPIO13 ├─────────────────┤ IN4        │
   │   5V   ├─────────────────┤ VCC        │
   │  GND   ├─────────────────┤ GND        │
   └────────┘                 │            │
@@ -76,8 +83,8 @@
                   ├────────────────────────────► Pumpe 3 (-)
                   └────────────────────────────► Pumpe 4 (-)
 
-    WICHTIG: Jumper zwischen VCC und JD-VCC am Relais entfernen!
-             JD-VCC mit externem 12V versorgen für Pumpen!
+    ⚠️  WICHTIG: Jumper zwischen VCC und JD-VCC am Relais entfernen!
+                JD-VCC mit externem 12V versorgen für Pumpen!
 
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                    E-INK DISPLAY (SPI)                                    │
@@ -87,13 +94,16 @@
        ┌──────────┐
        │   VCC    │───────────► 3.3V
        │   GND    │───────────► GND
-       │   DIN    │───────────► GPIO 23 (MOSI)
-       │   CLK    │───────────► GPIO 18 (SCK)
-       │    CS    │───────────► GPIO 15
-       │    DC    │───────────► GPIO 2
-       │   RST    │───────────► GPIO 0
-       │   BUSY   │───────────► GPIO 16
+       │   DIN    │───────────► GPIO 35 (MOSI)
+       │   CLK    │───────────► GPIO 36 (SCK)
+       │    CS    │───────────► GPIO 38
+       │    DC    │───────────► GPIO 39
+       │   RST    │───────────► GPIO 40
+       │   BUSY   │───────────► GPIO 41
        └──────────┘
+
+    HINWEIS: SPI Pins können in main.py angepasst werden.
+             Standard ESP32-S3 SPI: MOSI=35, SCK=36
 
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                    STROMVERSORGUNG                                        │
@@ -114,27 +124,38 @@
 │                    PIN-BELEGUNG ZUSAMMENFASSUNG                           │
 └─────────────────────────────────────────────────────────────────────────┘
 
-    GPIO 0  ──► E-Ink RST
-    GPIO 2  ──► E-Ink DC
-    GPIO 4  ──► DHT11 DATA
-    GPIO 5  ──► Ultrasonic TRIG
-    GPIO 12 ──► Relais IN2 (Pumpe 2)
-    GPIO 13 ──► Relais IN1 (Pumpe 1)
-    GPIO 14 ──► Relais IN3 (Pumpe 3)
-    GPIO 15 ──► E-Ink CS
-    GPIO 16 ──► E-Ink BUSY
-    GPIO 18 ──► Ultrasonic ECHO (mit Spannungsteiler!)
-    GPIO 18 ──► E-Ink CLK (shared mit Ultrasonic, siehe Hinweis unten)
-    GPIO 23 ──► E-Ink DIN
-    GPIO 27 ──► Relais IN4 (Pumpe 4)
-    GPIO 34 ──► Moisture Sensor 3 (ADC)
-    GPIO 35 ──► Moisture Sensor 4 (ADC)
-    GPIO 36 ──► Moisture Sensor 1 (ADC)
-    GPIO 39 ──► Moisture Sensor 2 (ADC)
+    GPIO 1  ──► Moisture Sensor 1 (ADC1_CH0) ✅ WiFi-sicher
+    GPIO 2  ──► Moisture Sensor 2 (ADC1_CH1) ✅ WiFi-sicher
+    GPIO 5  ──► Moisture Sensor 3 (ADC1_CH4) ✅ WiFi-sicher
+    GPIO 6  ──► Moisture Sensor 4 (ADC1_CH5) ✅ WiFi-sicher
+    GPIO 7  ──► DHT11 DATA
+    GPIO 8  ──► Ultrasonic TRIG
+    GPIO 9  ──► Ultrasonic ECHO (mit Spannungsteiler!)
+    GPIO 10 ──► Relais IN1 (Pumpe 1)
+    GPIO 11 ──► Relais IN2 (Pumpe 2)
+    GPIO 12 ──► Relais IN3 (Pumpe 3)
+    GPIO 13 ──► Relais IN4 (Pumpe 4)
+    GPIO 35 ──► E-Ink DIN (MOSI)
+    GPIO 36 ──► E-Ink CLK (SCK)
+    GPIO 38 ──► E-Ink CS
+    GPIO 39 ──► E-Ink DC
+    GPIO 40 ──► E-Ink RST
+    GPIO 41 ──► E-Ink BUSY
 
-    HINWEIS: GPIO 18 wird sowohl für E-Ink CLK als auch Ultrasonic ECHO verwendet.
-             Falls Konflikte auftreten, ändern Sie einen der Pins in main.py.
-             Empfehlung: Ultrasonic ECHO auf GPIO 19 ändern.
+┌─────────────────────────────────────────────────────────────────────────┐
+│                ESP32-S3 PIN-KOMPATIBILITÄT WICHTIG!                       │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    ✅ ADC1 (GPIO 1-10):  MIT WiFi kompatibel - für Moisture Sensors!
+    ❌ ADC2 (GPIO 11-20): NICHT mit WiFi kompatibel - vermeiden!
+    ⚠️  GPIO 0, 3:        Strapping Pins - nicht für kritische Sensoren!
+    ⚠️  GPIO 19, 20:      USB Pins - nicht verwenden!
+    ✅ GPIO 21-48:        Frei verwendbar für digitale I/O
+
+    EMPFEHLUNG:
+    - Analoge Sensoren:   GPIO 1-10 (ADC1)
+    - Digitale I/O:       GPIO 10-18, 21+
+    - Kritische Signale:  GPIO 21+ (keine Strapping Pins)
 
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                    VERKABELUNGS-CHECKLISTE                                │
@@ -142,11 +163,15 @@
 
     □ Alle 3.3V Verbindungen an ESP32 3.3V Pin
     □ Alle GND Verbindungen an ESP32 GND Pin
-    □ DHT11 Pull-up Widerstand (10kΩ) installiert
-    □ Ultraschall-Spannungsteiler (2kΩ + 1kΩ) installiert
+    □ Moisture Sensors an GPIO 1, 2, 5, 6 (ADC1!) angeschlossen
+    □ DHT11 an GPIO 7 + Pull-up Widerstand (10kΩ) installiert
+    □ Ultraschall TRIG an GPIO 8
+    □ Ultraschall ECHO an GPIO 9 mit Spannungsteiler (2kΩ + 1kΩ)
+    □ Relais IN1-IN4 an GPIO 10-13 angeschlossen
     □ Relais VCC an ESP32 5V angeschlossen
     □ Relais JD-VCC an externes 12V Netzteil angeschlossen
     □ Jumper zwischen VCC und JD-VCC am Relais ENTFERNT
+    □ E-Ink Display an GPIO 35, 36, 38-41 (falls verwendet)
     □ Alle Pumpen korrekt gepolt (+ an NO, - an 12V GND)
     □ 12V Netzteil hat ausreichende Leistung (min. 2A)
     □ Alle Kabelverbindungen fest und isoliert
@@ -156,12 +181,30 @@
 │                    SICHERHEITSHINWEISE                                    │
 └─────────────────────────────────────────────────────────────────────────┘
 
-    ⚠️  ESP32 verträgt MAXIMAL 3.3V an GPIO-Pins!
-    ⚠️  Ultraschall ECHO gibt 5V aus → Spannungsteiler ZWINGEND erforderlich!
+    ⚠️  ESP32-S3 verträgt MAXIMAL 3.3V an GPIO-Pins!
+    ⚠️  Ultraschall ECHO gibt 5V aus → Spannungsteiler ZWINGEND!
+    ⚠️  ADC2 (GPIO 11-20) funktioniert NICHT mit aktivem WiFi!
     ⚠️  Relais-Spulen benötigen separate 12V Versorgung (JD-VCC)
-    ⚠️  Pumpen dürfen nicht trocken laufen → Mindest-Wasserstand beachten!
+    ⚠️  Pumpen dürfen nicht trocken laufen → Mindest-Wasserstand!
     ⚠️  Elektronik vor Feuchtigkeit schützen
     ⚠️  Vor Wartung: Stromversorgung trennen!
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    UNTERSCHIEDE ZU KLASSISCHEM ESP32                      │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    ESP32 (alt)           ESP32-S3 (neu)          Grund
+    ───────────────────────────────────────────────────────────────────────
+    GPIO 36 (ADC)    →    GPIO 1 (ADC1_CH0)     S3 hat andere ADC-Pins
+    GPIO 39 (ADC)    →    GPIO 2 (ADC1_CH1)     S3 hat andere ADC-Pins
+    GPIO 34 (ADC)    →    GPIO 5 (ADC1_CH4)     S3 hat andere ADC-Pins
+    GPIO 35 (ADC)    →    GPIO 6 (ADC1_CH5)     S3 hat andere ADC-Pins
+    GPIO 4 (DHT)     →    GPIO 7 (DHT)          Konflikt vermeiden
+    GPIO 5 (TRIG)    →    GPIO 8 (TRIG)         Konflikt vermeiden
+    GPIO 18 (ECHO)   →    GPIO 9 (ECHO)         Konflikt vermeiden
+
+    WARUM?: ESP32-S3 ADC1 = GPIO 1-10 (WiFi-kompatibel!)
+            ESP32-S3 ADC2 = GPIO 11-20 (NICHT WiFi-kompatibel!)
 
 ╔═══════════════════════════════════════════════════════════════════════════╗
 ║                    VIEL ERFOLG MIT IHREM PROJEKT!                         ║

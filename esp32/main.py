@@ -22,24 +22,26 @@ FIREBASE_URL = "https://YOUR-PROJECT-default-rtdb.YOUR-REGION.firebasedatabase.a
 # Example: "https://pflanzenbewasserung-default-rtdb.europe-west1.firebasedatabase.app"
 
 # Pin Configuration (adjust based on your wiring)
-# Moisture Sensors (Analog)
-MOISTURE_PINS = [36, 39, 34, 35]  # GPIO pins for ADC
+# Moisture Sensors (Analog) - ESP32-S3 ADC1 Pins (WiFi compatible!)
+# IMPORTANT: ESP32-S3 ADC1 = GPIO 1-10, ADC2 = GPIO 11-20
+# ADC2 does NOT work with WiFi! Use ADC1 pins only!
+MOISTURE_PINS = [1, 2, 5, 6]  # GPIO pins for ADC (ADC1_CH0, CH1, CH4, CH5)
 
 # DHT11 Sensor
-DHT_PIN = 4
+DHT_PIN = 7  # Changed from 4 to avoid conflict with moisture sensors
 
 # Ultrasonic Sensor
-ULTRASONIC_TRIGGER = 5
-ULTRASONIC_ECHO = 18
+ULTRASONIC_TRIGGER = 8
+ULTRASONIC_ECHO = 9
 
-# Relay Pins (for pumps)
-RELAY_PINS = [13, 12, 14, 27]
+# Relay Pins (for pumps) - Using safe GPIO pins
+RELAY_PINS = [10, 11, 12, 13]
 
-# E-Ink Display (SPI)
-EINK_CS = 15
-EINK_DC = 2
-EINK_RST = 0
-EINK_BUSY = 16
+# E-Ink Display (SPI) - Using safe GPIO pins
+EINK_CS = 38
+EINK_DC = 39
+EINK_RST = 40
+EINK_BUSY = 41
 
 # Water Tank Configuration (in cm)
 TANK_DIAMETER = 20
