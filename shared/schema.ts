@@ -113,10 +113,10 @@ export type SystemStatus = z.infer<typeof systemStatusSchema>;
 // ===== Default Values =====
 
 export const defaultPlantProfiles: PlantProfile[] = [
-  { id: 1, name: "Pflanze 1", moistureMin: 30, moistureMax: 70, enabled: true },
-  { id: 2, name: "Pflanze 2", moistureMin: 30, moistureMax: 70, enabled: true },
-  { id: 3, name: "Pflanze 3", moistureMin: 30, moistureMax: 70, enabled: true },
-  { id: 4, name: "Pflanze 4", moistureMin: 30, moistureMax: 70, enabled: false },
+  { id: 1, name: "Pflanze 1", moistureMin: 30, moistureMax: 70, enabled: true, useSeasonalSchedule: false },
+  { id: 2, name: "Pflanze 2", moistureMin: 30, moistureMax: 70, enabled: true, useSeasonalSchedule: false },
+  { id: 3, name: "Pflanze 3", moistureMin: 30, moistureMax: 70, enabled: true, useSeasonalSchedule: false },
+  { id: 4, name: "Pflanze 4", moistureMin: 30, moistureMax: 70, enabled: true, useSeasonalSchedule: false },
 ];
 
 export const defaultNotificationSettings: NotificationSettings = {

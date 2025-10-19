@@ -129,7 +129,7 @@ export function SettingsDialog({
               <Label htmlFor="pin">PIN-Code (4 Ziffern)</Label>
               <Input
                 id="pin"
-                type="text"
+                type="password"
                 maxLength={4}
                 pattern="\d{4}"
                 value={editedSettings.pin}
@@ -137,7 +137,11 @@ export function SettingsDialog({
                   setEditedSettings({ ...editedSettings, pin: e.target.value })
                 }
                 data-testid="input-pin"
+                placeholder="••••"
               />
+              <p className="text-sm text-muted-foreground">
+                Die PIN wird nicht angezeigt und ist sicher gespeichert.
+              </p>
             </div>
 
             <div className="space-y-2">
