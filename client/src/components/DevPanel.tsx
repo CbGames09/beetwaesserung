@@ -4,8 +4,13 @@ import { Card } from "@/components/ui/card";
 import { seedDemoData } from "@/lib/firebaseInit";
 import { useToast } from "@/hooks/use-toast";
 import { ChevronDown, ChevronUp, Beaker } from "lucide-react";
+import type { SystemSettings } from "@shared/schema";
 
-export function DevPanel() {
+interface DevPanelProps {
+  settings?: SystemSettings;
+}
+
+export function DevPanel({ settings }: DevPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
   const { toast } = useToast();
