@@ -1,0 +1,76 @@
+{
+  "settings": {
+    "pin": "0000",
+    "measurementInterval": 300,
+    "numberOfPlants": 4,
+    "waterTank": {
+      "diameter": 20,
+      "height": 30
+    },
+    "plantProfiles": [
+      {
+        "id": 1,
+        "name": "Pflanze 1",
+        "moistureMin": 30,
+        "moistureMax": 70,
+        "enabled": true,
+        "useSeasonalSchedule": false
+      },
+      {
+        "id": 2,
+        "name": "Pflanze 2",
+        "moistureMin": 30,
+        "moistureMax": 70,
+        "enabled": true,
+        "useSeasonalSchedule": false
+      },
+      {
+        "id": 3,
+        "name": "Pflanze 3",
+        "moistureMin": 30,
+        "moistureMax": 70,
+        "enabled": true,
+        "useSeasonalSchedule": false
+      },
+      {
+        "id": 4,
+        "name": "Pflanze 4",
+        "moistureMin": 30,
+        "moistureMax": 70,
+        "enabled": true,
+        "useSeasonalSchedule": false
+      }
+    ],
+    "notifications": {
+      "enabled": false,
+      "lowWaterThreshold": 10,
+      "notifyOnTestFailure": true,
+      "notifyOnSensorError": true
+    }
+  },
+  "sensorData": {
+    "timestamp": 1729349400000,
+    "plantMoisture": [45, 62, 38, 71],
+    "temperature": 22.5,
+    "humidity": 58,
+    "waterLevel": 75,
+    "waterLevelCm": 7.5
+  },
+  "systemStatus": {
+    "online": true,
+    "lastUpdate": 1729349400000,
+    "displayStatus": "ok"
+  },
+  "lastTest": {
+    "timestamp": 1729176600000,
+    "overallStatus": "passed",
+    "sensorTests": {
+      "moistureSensors": [true, true, true, true],
+      "dht11": true,
+      "ultrasonic": true
+    },
+    "pumpTests": [true, true, true, true],
+    "connectivityTest": true,
+    "details": "Alle Tests erfolgreich abgeschlossen"
+  }
+}
