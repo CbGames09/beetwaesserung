@@ -15,11 +15,12 @@
     └───┬──┘              └───┬──┘              └───┬──┘              └───┬──┘
         │                     │                     │                     │
         ▼                     ▼                     ▼                     ▼
-    GPIO 1                GPIO 2                GPIO 5                GPIO 6
-      (ADC1_CH0)            (ADC1_CH1)            (ADC1_CH4)            (ADC1_CH5)
+    GPIO 4                GPIO 5                GPIO 6                GPIO 7
+      (ADC1_CH3)            (ADC1_CH4)            (ADC1_CH5)            (ADC1_CH6)
 
     ⚠️  WICHTIG: ESP32-S3 ADC1 = GPIO 1-10 (WiFi kompatibel!)
                 ADC2 = GPIO 11-20 funktioniert NICHT mit WiFi!
+                GPIO 0, 1, 2, 3 sind STRAPPING PINS - NICHT für Sensoren!
 
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                          DHT11 SENSOR                                     │
@@ -29,7 +30,7 @@
        ┌──────┐
        │ VCC  │───────────► 3.3V
        │      │
-       │ DATA │─────┬──────► GPIO 7
+       │ DATA │─────┬──────► GPIO 8
        │      │     │
        │ GND  │───┐ │
        └──────┘   │ │
@@ -43,11 +44,11 @@
       HC-SR04
      ┌────────┐
      │  VCC   │───────────► 5V
-     │  TRIG  │───────────► GPIO 8
+     │  TRIG  │───────────► GPIO 9
      │        │
      │  ECHO  │────┐
      │        │    │       SPANNUNGSTEILER (5V → 3.3V):
-     │  GND   │──┐ │       ┌─── 2kΩ ────┬──► GPIO 9 (3.3V)
+     │  GND   │──┐ │       ┌─── 2kΩ ────┬──► GPIO 10 (3.3V)
      └────────┘  │ └───────┤            │
                  │         └─── 1kΩ ────┴──► GND
                  └─────────────────────────► GND
@@ -61,10 +62,10 @@
 
     ESP32                      RELAIS MODUL                    PUMPEN
   ┌────────┐                 ┌────────────┐
-  │ GPIO10 ├─────────────────┤ IN1        │
-  │ GPIO11 ├─────────────────┤ IN2        │
-  │ GPIO12 ├─────────────────┤ IN3        │
-  │ GPIO13 ├─────────────────┤ IN4        │
+  │ GPIO11 ├─────────────────┤ IN1        │
+  │ GPIO12 ├─────────────────┤ IN2        │
+  │ GPIO13 ├─────────────────┤ IN3        │
+  │ GPIO14 ├─────────────────┤ IN4        │
   │   5V   ├─────────────────┤ VCC        │
   │  GND   ├─────────────────┤ GND        │
   └────────┘                 │            │
@@ -124,17 +125,17 @@
 │                    PIN-BELEGUNG ZUSAMMENFASSUNG                           │
 └─────────────────────────────────────────────────────────────────────────┘
 
-    GPIO 1  ──► Moisture Sensor 1 (ADC1_CH0) ✅ WiFi-sicher
-    GPIO 2  ──► Moisture Sensor 2 (ADC1_CH1) ✅ WiFi-sicher
-    GPIO 5  ──► Moisture Sensor 3 (ADC1_CH4) ✅ WiFi-sicher
-    GPIO 6  ──► Moisture Sensor 4 (ADC1_CH5) ✅ WiFi-sicher
-    GPIO 7  ──► DHT11 DATA
-    GPIO 8  ──► Ultrasonic TRIG
-    GPIO 9  ──► Ultrasonic ECHO (mit Spannungsteiler!)
-    GPIO 10 ──► Relais IN1 (Pumpe 1)
-    GPIO 11 ──► Relais IN2 (Pumpe 2)
-    GPIO 12 ──► Relais IN3 (Pumpe 3)
-    GPIO 13 ──► Relais IN4 (Pumpe 4)
+    GPIO 4  ──► Moisture Sensor 1 (ADC1_CH3) ✅ WiFi-sicher
+    GPIO 5  ──► Moisture Sensor 2 (ADC1_CH4) ✅ WiFi-sicher
+    GPIO 6  ──► Moisture Sensor 3 (ADC1_CH5) ✅ WiFi-sicher
+    GPIO 7  ──► Moisture Sensor 4 (ADC1_CH6) ✅ WiFi-sicher
+    GPIO 8  ──► DHT11 DATA
+    GPIO 9  ──► Ultrasonic TRIG
+    GPIO 10 ──► Ultrasonic ECHO (mit Spannungsteiler!)
+    GPIO 11 ──► Relais IN1 (Pumpe 1)
+    GPIO 12 ──► Relais IN2 (Pumpe 2)
+    GPIO 13 ──► Relais IN3 (Pumpe 3)
+    GPIO 14 ──► Relais IN4 (Pumpe 4)
     GPIO 35 ──► E-Ink DIN (MOSI)
     GPIO 36 ──► E-Ink CLK (SCK)
     GPIO 38 ──► E-Ink CS
@@ -146,15 +147,15 @@
 │                ESP32-S3 PIN-KOMPATIBILITÄT WICHTIG!                       │
 └─────────────────────────────────────────────────────────────────────────┘
 
-    ✅ ADC1 (GPIO 1-10):  MIT WiFi kompatibel - für Moisture Sensors!
+    ✅ ADC1 (GPIO 4-10):  MIT WiFi kompatibel - für Moisture Sensors!
     ❌ ADC2 (GPIO 11-20): NICHT mit WiFi kompatibel - vermeiden!
-    ⚠️  GPIO 0, 3:        Strapping Pins - nicht für kritische Sensoren!
+    ❌ GPIO 0, 1, 2, 3:   STRAPPING PINS - NICHT für ADC verwenden!
     ⚠️  GPIO 19, 20:      USB Pins - nicht verwenden!
     ✅ GPIO 21-48:        Frei verwendbar für digitale I/O
 
     EMPFEHLUNG:
-    - Analoge Sensoren:   GPIO 1-10 (ADC1)
-    - Digitale I/O:       GPIO 10-18, 21+
+    - Analoge Sensoren:   GPIO 4-10 (ADC1, keine Strapping Pins!)
+    - Digitale I/O:       GPIO 11-18, 21+
     - Kritische Signale:  GPIO 21+ (keine Strapping Pins)
 
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -163,11 +164,11 @@
 
     □ Alle 3.3V Verbindungen an ESP32 3.3V Pin
     □ Alle GND Verbindungen an ESP32 GND Pin
-    □ Moisture Sensors an GPIO 1, 2, 5, 6 (ADC1!) angeschlossen
-    □ DHT11 an GPIO 7 + Pull-up Widerstand (10kΩ) installiert
-    □ Ultraschall TRIG an GPIO 8
-    □ Ultraschall ECHO an GPIO 9 mit Spannungsteiler (2kΩ + 1kΩ)
-    □ Relais IN1-IN4 an GPIO 10-13 angeschlossen
+    □ Moisture Sensors an GPIO 4, 5, 6, 7 (ADC1!) angeschlossen
+    □ DHT11 an GPIO 8 + Pull-up Widerstand (10kΩ) installiert
+    □ Ultraschall TRIG an GPIO 9
+    □ Ultraschall ECHO an GPIO 10 mit Spannungsteiler (2kΩ + 1kΩ)
+    □ Relais IN1-IN4 an GPIO 11-14 angeschlossen
     □ Relais VCC an ESP32 5V angeschlossen
     □ Relais JD-VCC an externes 12V Netzteil angeschlossen
     □ Jumper zwischen VCC und JD-VCC am Relais ENTFERNT
@@ -195,15 +196,16 @@
 
     ESP32 (alt)           ESP32-S3 (neu)          Grund
     ───────────────────────────────────────────────────────────────────────
-    GPIO 36 (ADC)    →    GPIO 1 (ADC1_CH0)     S3 hat andere ADC-Pins
-    GPIO 39 (ADC)    →    GPIO 2 (ADC1_CH1)     S3 hat andere ADC-Pins
-    GPIO 34 (ADC)    →    GPIO 5 (ADC1_CH4)     S3 hat andere ADC-Pins
-    GPIO 35 (ADC)    →    GPIO 6 (ADC1_CH5)     S3 hat andere ADC-Pins
-    GPIO 4 (DHT)     →    GPIO 7 (DHT)          Konflikt vermeiden
-    GPIO 5 (TRIG)    →    GPIO 8 (TRIG)         Konflikt vermeiden
-    GPIO 18 (ECHO)   →    GPIO 9 (ECHO)         Konflikt vermeiden
+    GPIO 36 (ADC)    →    GPIO 4 (ADC1_CH3)     S3: GPIO 0-3 Strapping!
+    GPIO 39 (ADC)    →    GPIO 5 (ADC1_CH4)     S3: GPIO 0-3 Strapping!
+    GPIO 34 (ADC)    →    GPIO 6 (ADC1_CH5)     S3 hat andere ADC-Pins
+    GPIO 35 (ADC)    →    GPIO 7 (ADC1_CH6)     S3 hat andere ADC-Pins
+    GPIO 4 (DHT)     →    GPIO 8 (DHT)          Konflikt vermeiden
+    GPIO 5 (TRIG)    →    GPIO 9 (TRIG)         Konflikt vermeiden
+    GPIO 18 (ECHO)   →    GPIO 10 (ECHO)        Konflikt vermeiden
 
-    WARUM?: ESP32-S3 ADC1 = GPIO 1-10 (WiFi-kompatibel!)
+    WARUM?: ESP32-S3 ADC1 = GPIO 4-10 (WiFi-kompatibel, keine Strapping!)
+            ESP32-S3 GPIO 0-3 = STRAPPING PINS (MicroPython blockiert ADC!)
             ESP32-S3 ADC2 = GPIO 11-20 (NICHT WiFi-kompatibel!)
 
 ╔═══════════════════════════════════════════════════════════════════════════╗

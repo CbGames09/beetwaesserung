@@ -25,17 +25,18 @@ FIREBASE_URL = "https://YOUR-PROJECT-default-rtdb.YOUR-REGION.firebasedatabase.a
 # Moisture Sensors (Analog) - ESP32-S3 ADC1 Pins (WiFi compatible!)
 # IMPORTANT: ESP32-S3 ADC1 = GPIO 1-10, ADC2 = GPIO 11-20
 # ADC2 does NOT work with WiFi! Use ADC1 pins only!
-MOISTURE_PINS = [1, 2, 5, 6]  # GPIO pins for ADC (ADC1_CH0, CH1, CH4, CH5)
+# ⚠️ WARNING: GPIO 0, 1, 2, 3 are STRAPPING PINS - do NOT use for ADC!
+MOISTURE_PINS = [4, 5, 6, 7]  # GPIO pins for ADC (ADC1_CH3, CH4, CH5, CH6)
 
 # DHT11 Sensor
-DHT_PIN = 7  # Changed from 4 to avoid conflict with moisture sensors
+DHT_PIN = 8  # Changed to avoid ADC pin conflict
 
 # Ultrasonic Sensor
-ULTRASONIC_TRIGGER = 8
-ULTRASONIC_ECHO = 9
+ULTRASONIC_TRIGGER = 9
+ULTRASONIC_ECHO = 10
 
 # Relay Pins (for pumps) - Using safe GPIO pins
-RELAY_PINS = [10, 11, 12, 13]
+RELAY_PINS = [11, 12, 13, 14]
 
 # E-Ink Display (SPI) - Using safe GPIO pins
 EINK_CS = 38
