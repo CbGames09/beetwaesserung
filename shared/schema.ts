@@ -142,7 +142,7 @@ export const defaultNotificationSettings: NotificationSettings = {
 export const defaultSystemSettings: SystemSettings = {
   pin: import.meta.env.VITE_DEFAULT_PIN || "0000", // Fallback nur für Dev-Umgebung
   measurementInterval: 300, // 5 minutes
-  numberOfPlants: 4,
+  numberOfPlants: 3,
   waterTank: {
     diameter: 20, // 20cm
     height: 30, // 30cm

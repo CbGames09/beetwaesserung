@@ -35,6 +35,13 @@ export function DevPanel({ settings }: DevPanelProps) {
     setIsSeeding(false);
   };
 
+  const handleShowSettings = () => {
+    if (settings) {
+      console.log("📊 AKTUELLE SETTINGS AUS FIREBASE:", settings);
+      alert(`Settings aus Firebase:\n\nAnzahl Pflanzen: ${settings.numberOfPlants}\nPIN: ${settings.pin}\nMessintervall: ${settings.measurementInterval}s\n\nSiehe Console (F12) für Details`);
+    }
+  };
+
   if (import.meta.env.PROD) {
     return null;
   }
@@ -78,6 +85,21 @@ export function DevPanel({ settings }: DevPanelProps) {
             >
               {isSeeding ? "Lädt..." : "Demo-Daten laden"}
             </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={handleShowSettings}
+            >
+              Settings anzeigen
+            </Button>
+            
+            {settings && (
+              <div className="text-xs text-muted-foreground mt-2 p-2 bg-muted rounded">
+                <strong>numberOfPlants:</strong> {settings.numberOfPlants}
+              </div>
+            )}
             
             <p className="text-xs text-muted-foreground mt-2">
               Füllt die Firebase-Datenbank mit Beispieldaten für Tests.
