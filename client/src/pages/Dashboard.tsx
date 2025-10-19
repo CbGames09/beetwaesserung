@@ -141,6 +141,16 @@ export default function Dashboard() {
     (p) => p.id <= settings.numberOfPlants
   );
 
+  // DEBUG: Log für Entwicklung
+  if (import.meta.env.DEV) {
+    console.log("🌱 DEBUG Plant Display:", {
+      numberOfPlants: settings.numberOfPlants,
+      totalProfiles: settings.plantProfiles.length,
+      profileIds: settings.plantProfiles.map(p => p.id),
+      activePlantIds: activePlants.map(p => p.id),
+    });
+  }
+
   const nextTestTime = testResult
     ? testResult.timestamp + 7 * 24 * 60 * 60 * 1000
     : undefined;
