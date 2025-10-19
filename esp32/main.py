@@ -6,8 +6,9 @@ import ujson as json
 import urequests as requests
 import network
 import machine
-from machine import Pin, ADC, I2C
+from machine import Pin, ADC, I2C, RTC
 import dht
+import ntptime
 
 # =============================================================================
 # CONFIGURATION - UPDATE THESE VALUES
@@ -53,6 +54,10 @@ TANK_FULL_DISTANCE = 5  # Distance from sensor to full tank (cm)
 MEASUREMENT_INTERVAL = 300  # Default: 5 minutes (will be overridden from Firebase)
 WATERING_DURATION = 10  # Default watering duration in seconds
 PUMP_4_DAILY_RUN = 10  # Pump 4 runs for 10 seconds daily when only 3 plants active
+
+# NTP Configuration
+NTP_HOST = "pool.ntp.org"  # NTP server
+TIMEZONE_OFFSET = 1  # UTC+1 for Germany (change to 2 for summer time)
 
 # =============================================================================
 # HARDWARE INITIALIZATION
@@ -268,11 +273,46 @@ class WateringSystem:
             
             if self.hw.wlan.isconnected():
                 print(f"\n✓ WiFi connected: {self.hw.wlan.ifconfig()[0]}")
+                self.sync_time()
                 return True
             else:
                 print("\n✗ WiFi connection failed")
                 return False
         return True
+    
+    def sync_time(self):
+        """Synchronize time with NTP server"""
+        try:
+            print("→ Synchronizing time with NTP server...")
+            ntptime.settime()
+            
+            # Get current UTC time
+            rtc = RTC()
+            utc_time = rtc.datetime()
+            
+            # Apply timezone offset (convert hours to seconds)
+            offset_seconds = TIMEZONE_OFFSET * 3600
+            current_timestamp = time.time() + offset_seconds
+            
+            # Convert to readable format
+            year, month, day, hour, minute, second, _, _ = time.localtime(current_timestamp)
+            
+            print(f"✓ Time synchronized: {year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}:{second:02d}")
+            print(f"  Unix Timestamp: {int(current_timestamp * 1000)} ms")
+            
+        except Exception as e:
+            print(f"✗ Time sync failed: {e}")
+            print("  Using system time (may be incorrect)")
+    
+    def get_timestamp(self):
+        """Get current timestamp in milliseconds (with timezone offset) - for Firebase"""
+        offset_seconds = TIMEZONE_OFFSET * 3600
+        return int((time.time() + offset_seconds) * 1000)
+    
+    def get_time(self):
+        """Get current time in seconds (with timezone offset) - for calculations"""
+        offset_seconds = TIMEZONE_OFFSET * 3600
+        return time.time() + offset_seconds
     
     def load_settings(self):
         """Load settings from Firebase"""
@@ -325,7 +365,7 @@ class WateringSystem:
         water_level = max(0, min(100, water_level))
         
         return {
-            "timestamp": int(time.time() * 1000),  # Milliseconds
+            "timestamp": self.get_timestamp(),  # Milliseconds with timezone
             "plantMoisture": moisture,
             "temperature": temp,
             "humidity": humidity,
@@ -359,7 +399,7 @@ class WateringSystem:
     def run_daily_pump4_maintenance(self):
         """Run pump 4 daily for 10 seconds if only 3 plants active"""
         if self.settings and self.settings['numberOfPlants'] == 3:
-            current_time = time.time()
+            current_time = self.get_time()  # Get time in seconds with timezone
             # Run once per day (86400 seconds)
             if current_time - self.hw.last_pump4_run > 86400:
                 print("→ Running daily pump 4 maintenance")
@@ -368,7 +408,7 @@ class WateringSystem:
     
     def run_system_test(self):
         """Run weekly system test"""
-        current_time = time.time()
+        current_time = self.get_time()  # Get time in seconds with timezone
         if current_time - self.last_test_time < self.test_interval:
             return
         
@@ -377,7 +417,7 @@ class WateringSystem:
         print("=" * 50)
         
         result = {
-            "timestamp": int(current_time * 1000),
+            "timestamp": self.get_timestamp(),  # Milliseconds with timezone
             "overallStatus": "passed",
             "sensorTests": {
                 "moistureSensors": [],
@@ -515,7 +555,7 @@ class WateringSystem:
                 # Update system status
                 status = {
                     "online": True,
-                    "lastUpdate": int(time.time() * 1000),
+                    "lastUpdate": self.get_timestamp(),  # Milliseconds with timezone
                     "displayStatus": "ok"  # Can be "ok", "warning", "error"
                 }
                 
