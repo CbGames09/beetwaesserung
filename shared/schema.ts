@@ -15,12 +15,26 @@ export type SensorData = z.infer<typeof sensorDataSchema>;
 
 // ===== Plant Profile Schema =====
 
+export const seasonalThresholdsSchema = z.object({
+  moistureMin: z.number().min(0).max(100),
+  moistureMax: z.number().min(0).max(100),
+});
+
+export type SeasonalThresholds = z.infer<typeof seasonalThresholdsSchema>;
+
 export const plantProfileSchema = z.object({
   id: z.number().min(1).max(4),
   name: z.string().min(1).max(50),
-  moistureMin: z.number().min(0).max(100), // Lower threshold for watering
-  moistureMax: z.number().min(0).max(100), // Upper threshold (stop watering)
+  moistureMin: z.number().min(0).max(100), // Default/year-round lower threshold
+  moistureMax: z.number().min(0).max(100), // Default/year-round upper threshold
   enabled: z.boolean(),
+  useSeasonalSchedule: z.boolean().default(false),
+  seasonalThresholds: z.object({
+    spring: seasonalThresholdsSchema.optional(), // March - May
+    summer: seasonalThresholdsSchema.optional(), // June - August
+    fall: seasonalThresholdsSchema.optional(),   // September - November
+    winter: seasonalThresholdsSchema.optional(), // December - February
+  }).optional(),
 });
 
 export type PlantProfile = z.infer<typeof plantProfileSchema>;

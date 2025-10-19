@@ -18,9 +18,11 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 import { Settings as SettingsIcon } from "lucide-react";
 import type { SystemSettings, PlantProfile } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { SeasonalScheduleEditor } from "@/components/SeasonalScheduleEditor";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -269,6 +271,20 @@ export function SettingsDialog({
                         Bewässerung startet bei {profile.moistureMin}% und stoppt bei{" "}
                         {profile.moistureMax}%.
                       </p>
+
+                      <Separator className="my-4" />
+
+                      <SeasonalScheduleEditor
+                        profile={profile}
+                        onChange={(updatedProfile) => {
+                          setEditedSettings({
+                            ...editedSettings,
+                            plantProfiles: editedSettings.plantProfiles.map((p) =>
+                              p.id === updatedProfile.id ? updatedProfile : p
+                            ),
+                          });
+                        }}
+                      />
                     </div>
                   </AccordionContent>
                 </AccordionItem>

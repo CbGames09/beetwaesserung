@@ -2,8 +2,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Droplets, Power } from "lucide-react";
+import { Droplets, Power, Leaf } from "lucide-react";
 import type { PlantProfile } from "@shared/schema";
+import { getActiveThresholds, getSeasonNameDE } from "@/lib/seasonalUtils";
 
 interface PlantCardProps {
   profile: PlantProfile;
@@ -20,10 +21,14 @@ export function PlantCard({
   onManualWater,
   isWatering = false,
 }: PlantCardProps) {
+  // Get active thresholds (seasonal or default)
+  const activeThresholds = getActiveThresholds(profile);
+  const { moistureMin, moistureMax } = activeThresholds;
+
   const getStatus = () => {
-    if (moisture < profile.moistureMin) return "critical";
-    if (moisture < profile.moistureMin + 10) return "warning";
-    if (moisture > profile.moistureMax) return "overwatered";
+    if (moisture < moistureMin) return "critical";
+    if (moisture < moistureMin + 10) return "warning";
+    if (moisture > moistureMax) return "overwatered";
     return "healthy";
   };
 
@@ -100,9 +105,18 @@ export function PlantCard({
             indicatorClassName={getProgressColor()}
           />
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>{profile.moistureMin}%</span>
-            <span>{profile.moistureMax}%</span>
+            <span>{moistureMin}%</span>
+            <span>{moistureMax}%</span>
           </div>
+          {activeThresholds.isSeasonallyAdjusted && activeThresholds.season && (
+            <div 
+              className="flex items-center justify-center gap-1 text-xs text-primary"
+              data-testid={`seasonal-indicator-${profile.id}`}
+            >
+              <Leaf className="w-3 h-3" />
+              <span>{getSeasonNameDE(activeThresholds.season)} Modus</span>
+            </div>
+          )}
         </div>
 
         <div className="w-full pt-2 border-t space-y-3">
