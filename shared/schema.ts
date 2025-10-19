@@ -127,7 +127,7 @@ export const defaultNotificationSettings: NotificationSettings = {
 };
 
 export const defaultSystemSettings: SystemSettings = {
-  pin: "1234",
+  pin: import.meta.env.VITE_DEFAULT_PIN || "0000", // Fallback nur für Dev-Umgebung
   measurementInterval: 300, // 5 minutes
   numberOfPlants: 3,
   waterTank: {

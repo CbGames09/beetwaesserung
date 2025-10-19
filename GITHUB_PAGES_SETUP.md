@@ -74,6 +74,7 @@ Fügen Sie **alle** folgenden Secrets einzeln hinzu:
 | `VITE_FIREBASE_STORAGE_BUCKET` | Firebase Console → Projekteinstellungen → Web-App Config |
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase Console → Projekteinstellungen → Web-App Config |
 | `VITE_FIREBASE_APP_ID` | Firebase Console → Projekteinstellungen → Web-App Config |
+| `VITE_DEFAULT_PIN` | **Ihre persönliche 4-stellige PIN** (z.B. `1234`) |
 
 **So finden Sie die Firebase-Werte:**
 1. [Firebase Console](https://console.firebase.google.com/)
