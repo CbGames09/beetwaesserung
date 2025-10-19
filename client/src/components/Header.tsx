@@ -1,16 +1,17 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Settings, Wifi, WifiOff } from "lucide-react";
+import { Settings, Wifi, WifiOff, Clock } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import type { SystemStatus } from "@shared/schema";
 
 interface HeaderProps {
   systemStatus: SystemStatus;
   onSettingsClick: () => void;
+  onHistoryClick: () => void;
 }
 
-export function Header({ systemStatus, onSettingsClick }: HeaderProps) {
+export function Header({ systemStatus, onSettingsClick, onHistoryClick }: HeaderProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -77,6 +78,16 @@ export function Header({ systemStatus, onSettingsClick }: HeaderProps) {
               </Badge>
             )}
           </div>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onHistoryClick}
+            data-testid="button-open-history"
+          >
+            <Clock className="h-5 w-5" />
+            <span className="sr-only">Verlauf</span>
+          </Button>
 
           <ThemeToggle />
 

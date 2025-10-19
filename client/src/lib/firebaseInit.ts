@@ -1,4 +1,4 @@
-import { database, ref, set, get } from "./firebase";
+import { database, ref, set, get, push } from "./firebase";
 import {
   defaultSystemSettings,
   defaultSensorData,
@@ -7,6 +7,7 @@ import {
   type SensorData,
   type SystemStatus,
   type SystemTestResult,
+  type HistoricalSensorData,
 } from "@shared/schema";
 
 /**
@@ -95,10 +96,73 @@ export async function seedDemoData() {
     await set(ref(database, "lastTest"), demoTestResult);
     await set(ref(database, "systemStatus"), demoSystemStatus);
 
+    // Seed 7 days of historical data (one reading every 2 hours)
+    await seedHistoricalData();
+
     console.log("✓ Demo data seeded successfully");
     return true;
   } catch (error) {
     console.error("✗ Failed to seed demo data:", error);
+    return false;
+  }
+}
+
+/**
+ * Generate realistic historical data for the last 7 days
+ */
+export async function seedHistoricalData() {
+  try {
+    const now = Date.now();
+    const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+    const twoHours = 2 * 60 * 60 * 1000;
+
+    const historicalRef = ref(database, "historicalData");
+
+    // Generate data points every 2 hours for 7 days
+    for (let timestamp = sevenDaysAgo; timestamp < now; timestamp += twoHours) {
+      // Create realistic varying data
+      const timeOfDay = new Date(timestamp).getHours();
+      const dayVariation = Math.sin((timestamp - sevenDaysAgo) / (24 * 60 * 60 * 1000) * Math.PI * 2);
+
+      // Temperature varies by time of day (cooler at night, warmer during day)
+      const baseTemp = 20 + (timeOfDay / 24) * 6;
+      const temperature = baseTemp + dayVariation * 2 + (Math.random() * 2 - 1);
+
+      // Humidity inversely correlates with temperature
+      const humidity = 70 - (temperature - 20) * 2 + (Math.random() * 10 - 5);
+
+      // Moisture decreases over time, with occasional watering events
+      const daysSince = (timestamp - sevenDaysAgo) / (24 * 60 * 60 * 1000);
+      const wasWatered = Math.random() > 0.85; // 15% chance of watering
+      
+      const plant1Base = 70 - daysSince * 5 + (wasWatered ? 20 : 0);
+      const plant2Base = 65 - daysSince * 4 + (wasWatered ? 20 : 0);
+      const plant3Base = 60 - daysSince * 6 + (wasWatered ? 20 : 0);
+      const plant4Base = 75 - daysSince * 3 + (wasWatered ? 20 : 0);
+
+      // Water level decreases over time, occasional refills
+      const waterLevel = Math.max(10, 100 - daysSince * 8 + (Math.random() > 0.9 ? 50 : 0));
+
+      const dataPoint: HistoricalSensorData = {
+        timestamp,
+        plantMoisture: [
+          Math.max(20, Math.min(100, plant1Base + Math.random() * 5 - 2.5)),
+          Math.max(20, Math.min(100, plant2Base + Math.random() * 5 - 2.5)),
+          Math.max(20, Math.min(100, plant3Base + Math.random() * 5 - 2.5)),
+          Math.max(20, Math.min(100, plant4Base + Math.random() * 5 - 2.5)),
+        ],
+        temperature: Math.round(temperature * 10) / 10,
+        humidity: Math.max(30, Math.min(90, Math.round(humidity))),
+        waterLevel: Math.round(waterLevel),
+      };
+
+      await push(historicalRef, dataPoint);
+    }
+
+    console.log("✓ Historical data seeded successfully");
+    return true;
+  } catch (error) {
+    console.error("✗ Failed to seed historical data:", error);
     return false;
   }
 }

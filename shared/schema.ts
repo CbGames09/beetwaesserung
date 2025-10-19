@@ -114,3 +114,34 @@ export const defaultSystemStatus: SystemStatus = {
   lastUpdate: 0,
   displayStatus: "error",
 };
+
+// ===== Historical Data Schema =====
+
+export const historicalSensorDataSchema = z.object({
+  timestamp: z.number(),
+  plantMoisture: z.array(z.number().min(0).max(100)).length(4),
+  temperature: z.number(),
+  humidity: z.number().min(0).max(100),
+  waterLevel: z.number().min(0).max(100),
+});
+
+export type HistoricalSensorData = z.infer<typeof historicalSensorDataSchema>;
+
+// ===== Notification Settings Schema =====
+
+export const notificationSettingsSchema = z.object({
+  enabled: z.boolean(),
+  email: z.string().email().optional(),
+  lowWaterThreshold: z.number().min(0).max(100).default(10), // Notify when water below this %
+  notifyOnTestFailure: z.boolean().default(true),
+  notifyOnSensorError: z.boolean().default(true),
+});
+
+export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
+
+export const defaultNotificationSettings: NotificationSettings = {
+  enabled: false,
+  lowWaterThreshold: 10,
+  notifyOnTestFailure: true,
+  notifyOnSensorError: true,
+};

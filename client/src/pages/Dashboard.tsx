@@ -7,6 +7,7 @@ import { WaterTankCard } from "@/components/WaterTankCard";
 import { SystemTestCard } from "@/components/SystemTestCard";
 import { PINDialog } from "@/components/PINDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
+import { HistoryDialog } from "@/components/HistoryDialog";
 import { DashboardSkeleton } from "@/components/LoadingSkeleton";
 import { DevPanel } from "@/components/DevPanel";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +29,7 @@ export default function Dashboard() {
   const [testResult, setTestResult] = useState<SystemTestResult | undefined>();
   const [showPINDialog, setShowPINDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [wateringPlantId, setWateringPlantId] = useState<number | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const { toast } = useToast();
@@ -148,7 +150,11 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header systemStatus={systemStatus} onSettingsClick={handleSettingsClick} />
+      <Header 
+        systemStatus={systemStatus} 
+        onSettingsClick={handleSettingsClick}
+        onHistoryClick={() => setShowHistory(true)}
+      />
 
       <main className="container mx-auto px-4 py-8 space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -205,6 +211,11 @@ export default function Dashboard() {
         onClose={() => setShowSettings(false)}
         settings={settings}
         onSave={handleSaveSettings}
+      />
+
+      <HistoryDialog
+        open={showHistory}
+        onOpenChange={setShowHistory}
       />
 
       <DevPanel />
