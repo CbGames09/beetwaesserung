@@ -46,6 +46,14 @@ Nach dem Erstellen der Datenbank müssen Sie die Sicherheitsregeln anpassen:
     "manualWatering": {
       ".read": true,
       ".write": true
+    },
+    "systemErrors": {
+      ".read": true,
+      ".write": true
+    },
+    "historicalData": {
+      ".read": true,
+      ".write": true
     }
   }
 }
@@ -83,6 +91,14 @@ Falls Sie maximale Sicherheit benötigen:
       ".write": "auth != null"
     },
     "manualWatering": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "systemErrors": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "historicalData": {
       ".read": "auth != null",
       ".write": "auth != null"
     }
