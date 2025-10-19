@@ -24,7 +24,35 @@ export async function initializeFirebaseData() {
       await set(settingsRef, defaultSystemSettings);
       console.log("✓ Firebase: Default settings initialized");
     } else {
-      console.log("✓ Firebase: Settings already exist");
+      // Prüfe ob alle erforderlichen Felder existieren
+      const existingSettings = settingsSnapshot.val();
+      let needsUpdate = false;
+      const updatedSettings = { ...existingSettings };
+
+      if (!existingSettings.plantProfiles) {
+        updatedSettings.plantProfiles = defaultSystemSettings.plantProfiles;
+        needsUpdate = true;
+        console.log("⚠ Firebase: plantProfiles fehlt, wird hinzugefügt");
+      }
+
+      if (!existingSettings.waterTank) {
+        updatedSettings.waterTank = defaultSystemSettings.waterTank;
+        needsUpdate = true;
+        console.log("⚠ Firebase: waterTank fehlt, wird hinzugefügt");
+      }
+
+      if (!existingSettings.notifications) {
+        updatedSettings.notifications = defaultSystemSettings.notifications;
+        needsUpdate = true;
+        console.log("⚠ Firebase: notifications fehlt, wird hinzugefügt");
+      }
+
+      if (needsUpdate) {
+        await set(settingsRef, updatedSettings);
+        console.log("✓ Firebase: Fehlende Felder wurden hinzugefügt");
+      } else {
+        console.log("✓ Firebase: Settings already exist");
+      }
     }
 
     const sensorRef = ref(database, "sensorData");
