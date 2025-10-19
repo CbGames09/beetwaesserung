@@ -2,14 +2,21 @@
 
 Automatisches Bewässerungssystem mit ESP32-S3, Firebase Realtime Database und React-Dashboard.
 
-## ✅ Projektstatus: Vollständig
+## ✅ Projektstatus: MVP + Erweiterte Features
 
-Alle Komponenten sind implementiert und einsatzbereit:
+MVP (Minimum Viable Product) - Vollständig implementiert:
 - ✅ React Web-Dashboard mit Dark/Light Mode und Echtzeit-Updates
 - ✅ Firebase Realtime Database Integration mit Fehlertoleranz
 - ✅ Vollständiger ESP32-S3 MicroPython Code mit allen Features
 - ✅ Umfassende Hardware-Dokumentation und Verkabelungsdiagramm
 - ✅ Deployment-Anleitung für GitHub Pages
+
+Erweiterte Features - In Entwicklung:
+- ✅ Historische Datenspeicherung und Visualisierung (Recharts)
+- ✅ E-Mail-Benachrichtigungen für kritische Ereignisse
+- ⏳ Saisonale Pflanzenprofile
+- ⏳ CSV-Datenexport
+- ⏳ Progressive Web App (PWA) mit Offline-Funktionalität
 
 ## Projektübersicht
 
@@ -19,6 +26,8 @@ Dieses Projekt ist ein IoT-basiertes automatisches Bewässerungssystem für 3-4 
 - Firebase Realtime Database für bidirektionale Kommunikation
 - E-Ink Display am ESP32 für Statusanzeige
 - Wöchentliche Systemtests
+- Historische Datenvisualisierung mit interaktiven Charts
+- E-Mail-Benachrichtigungen bei kritischen Ereignissen
 
 ## Technologie-Stack
 

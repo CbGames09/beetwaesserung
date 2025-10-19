@@ -32,12 +32,28 @@ export const waterTankSchema = z.object({
   height: z.number().positive(), // in cm
 });
 
+export const notificationSettingsSchema = z.object({
+  enabled: z.boolean(),
+  email: z.string().email().optional(),
+  lowWaterThreshold: z.number().min(0).max(100).default(10), // Notify when water below this %
+  notifyOnTestFailure: z.boolean().default(true),
+  notifyOnSensorError: z.boolean().default(true),
+});
+
+export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
+
 export const systemSettingsSchema = z.object({
   pin: z.string().length(4).regex(/^\d{4}$/), // 4-digit PIN
   measurementInterval: z.number().min(60).max(86400), // seconds (1 min to 24 hours)
   numberOfPlants: z.number().int().min(3).max(4),
   waterTank: waterTankSchema,
   plantProfiles: z.array(plantProfileSchema).length(4),
+  notifications: notificationSettingsSchema.default({
+    enabled: false,
+    lowWaterThreshold: 10,
+    notifyOnTestFailure: true,
+    notifyOnSensorError: true,
+  }),
 });
 
 export type SystemSettings = z.infer<typeof systemSettingsSchema>;
@@ -89,6 +105,13 @@ export const defaultPlantProfiles: PlantProfile[] = [
   { id: 4, name: "Pflanze 4", moistureMin: 30, moistureMax: 70, enabled: false },
 ];
 
+export const defaultNotificationSettings: NotificationSettings = {
+  enabled: false,
+  lowWaterThreshold: 10,
+  notifyOnTestFailure: true,
+  notifyOnSensorError: true,
+};
+
 export const defaultSystemSettings: SystemSettings = {
   pin: "1234",
   measurementInterval: 300, // 5 minutes
@@ -98,6 +121,12 @@ export const defaultSystemSettings: SystemSettings = {
     height: 30, // 30cm
   },
   plantProfiles: defaultPlantProfiles,
+  notifications: {
+    enabled: false,
+    lowWaterThreshold: 10,
+    notifyOnTestFailure: true,
+    notifyOnSensorError: true,
+  },
 };
 
 export const defaultSensorData: SensorData = {
@@ -127,21 +156,3 @@ export const historicalSensorDataSchema = z.object({
 
 export type HistoricalSensorData = z.infer<typeof historicalSensorDataSchema>;
 
-// ===== Notification Settings Schema =====
-
-export const notificationSettingsSchema = z.object({
-  enabled: z.boolean(),
-  email: z.string().email().optional(),
-  lowWaterThreshold: z.number().min(0).max(100).default(10), // Notify when water below this %
-  notifyOnTestFailure: z.boolean().default(true),
-  notifyOnSensorError: z.boolean().default(true),
-});
-
-export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
-
-export const defaultNotificationSettings: NotificationSettings = {
-  enabled: false,
-  lowWaterThreshold: 10,
-  notifyOnTestFailure: true,
-  notifyOnSensorError: true,
-};

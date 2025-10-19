@@ -57,6 +57,29 @@ export function SettingsDialog({
       return;
     }
 
+    // Validate notification settings
+    if (editedSettings.notifications.enabled) {
+      if (!editedSettings.notifications.email || editedSettings.notifications.email.trim() === "") {
+        toast({
+          title: "E-Mail erforderlich",
+          description: "Bitte geben Sie eine E-Mail-Adresse für Benachrichtigungen ein.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Simple email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(editedSettings.notifications.email)) {
+        toast({
+          title: "Ungültige E-Mail",
+          description: "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     onSave(editedSettings);
     toast({
       title: "Einstellungen gespeichert",
@@ -92,10 +115,11 @@ export function SettingsDialog({
         </DialogHeader>
 
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="general" data-testid="tab-general">Allgemein</TabsTrigger>
             <TabsTrigger value="plants" data-testid="tab-plants">Pflanzen</TabsTrigger>
             <TabsTrigger value="tank" data-testid="tab-tank">Wassertank</TabsTrigger>
+            <TabsTrigger value="notifications" data-testid="tab-notifications">Benachrichtigungen</TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="space-y-4 mt-4">
@@ -313,6 +337,151 @@ export function SettingsDialog({
                 Formel: V = π × r² × h
               </p>
             </div>
+          </TabsContent>
+
+          <TabsContent value="notifications" className="space-y-4 mt-4">
+            <p className="text-sm text-muted-foreground">
+              Konfigurieren Sie E-Mail-Benachrichtigungen für kritische Ereignisse. Diese Einstellungen werden vom ESP32 verwendet.
+            </p>
+
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="space-y-0.5">
+                <Label htmlFor="notif-enabled" className="font-semibold">
+                  Benachrichtigungen aktivieren
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  E-Mail-Benachrichtigungen für kritische Ereignisse
+                </p>
+              </div>
+              <Switch
+                id="notif-enabled"
+                checked={editedSettings.notifications.enabled}
+                onCheckedChange={(checked) =>
+                  setEditedSettings({
+                    ...editedSettings,
+                    notifications: {
+                      ...editedSettings.notifications,
+                      enabled: checked,
+                    },
+                  })
+                }
+                data-testid="switch-notifications-enabled"
+              />
+            </div>
+
+            {editedSettings.notifications.enabled && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="notif-email">E-Mail-Adresse</Label>
+                  <Input
+                    id="notif-email"
+                    type="email"
+                    placeholder="ihre@email.de"
+                    value={editedSettings.notifications.email || ""}
+                    onChange={(e) =>
+                      setEditedSettings({
+                        ...editedSettings,
+                        notifications: {
+                          ...editedSettings.notifications,
+                          email: e.target.value,
+                        },
+                      })
+                    }
+                    data-testid="input-notification-email"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Diese E-Mail-Adresse empfängt alle Systembenachrichtigungen
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="low-water">
+                    Niedriger Wasserstand ({editedSettings.notifications.lowWaterThreshold}%)
+                  </Label>
+                  <Input
+                    id="low-water"
+                    type="range"
+                    min={5}
+                    max={30}
+                    value={editedSettings.notifications.lowWaterThreshold}
+                    onChange={(e) =>
+                      setEditedSettings({
+                        ...editedSettings,
+                        notifications: {
+                          ...editedSettings.notifications,
+                          lowWaterThreshold: parseInt(e.target.value),
+                        },
+                      })
+                    }
+                    data-testid="input-low-water-threshold"
+                    className="cursor-pointer"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Benachrichtigung senden, wenn Wasserstand unter {editedSettings.notifications.lowWaterThreshold}% fällt
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="notif-test-failure" className="font-medium">
+                      Testfehler melden
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Benachrichtigung bei wöchentlichen Testfehlern
+                    </p>
+                  </div>
+                  <Switch
+                    id="notif-test-failure"
+                    checked={editedSettings.notifications.notifyOnTestFailure}
+                    onCheckedChange={(checked) =>
+                      setEditedSettings({
+                        ...editedSettings,
+                        notifications: {
+                          ...editedSettings.notifications,
+                          notifyOnTestFailure: checked,
+                        },
+                      })
+                    }
+                    data-testid="switch-notify-test-failure"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="notif-sensor-error" className="font-medium">
+                      Sensorfehler melden
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Benachrichtigung bei Sensorfehlfunktionen
+                    </p>
+                  </div>
+                  <Switch
+                    id="notif-sensor-error"
+                    checked={editedSettings.notifications.notifyOnSensorError}
+                    onCheckedChange={(checked) =>
+                      setEditedSettings({
+                        ...editedSettings,
+                        notifications: {
+                          ...editedSettings.notifications,
+                          notifyOnSensorError: checked,
+                        },
+                      })
+                    }
+                    data-testid="switch-notify-sensor-error"
+                  />
+                </div>
+
+                <div className="p-4 bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 rounded-lg">
+                  <p className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-2">
+                    ⚠️ ESP32-Konfiguration erforderlich
+                  </p>
+                  <p className="text-xs text-amber-800 dark:text-amber-200">
+                    Um E-Mail-Benachrichtigungen zu erhalten, müssen Sie den ESP32 mit SMTP-Zugangsdaten konfigurieren. 
+                    Siehe <code className="bg-amber-900/20 px-1 rounded">esp32/EMAIL_SETUP.md</code> für Anweisungen.
+                  </p>
+                </div>
+              </>
+            )}
           </TabsContent>
         </Tabs>
 
