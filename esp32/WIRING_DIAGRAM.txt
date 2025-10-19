@@ -1,0 +1,168 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║           ESP32-S3 PLANT WATERING SYSTEM - VERKABELUNGSDIAGRAMM           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          BODENFEUCHTESENSOREN                             │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    Sensor 1              Sensor 2              Sensor 3              Sensor 4
+    ┌──────┐              ┌──────┐              ┌──────┐              ┌──────┐
+    │ VCC  ├──────────────┤ VCC  ├──────────────┤ VCC  ├──────────────┤ VCC  │───► 3.3V
+    │ GND  ├──────────────┤ GND  ├──────────────┤ GND  ├──────────────┤ GND  │───► GND
+    │ AOUT │              │ AOUT │              │ AOUT │              │ AOUT │
+    └───┬──┘              └───┬──┘              └───┬──┘              └───┬──┘
+        │                     │                     │                     │
+        ▼                     ▼                     ▼                     ▼
+    GPIO 36               GPIO 39               GPIO 34               GPIO 35
+      (ADC1_CH0)            (ADC1_CH3)            (ADC1_CH6)            (ADC1_CH7)
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          DHT11 SENSOR                                     │
+└─────────────────────────────────────────────────────────────────────────┘
+
+         DHT11
+       ┌──────┐
+       │ VCC  │───────────► 3.3V
+       │      │
+       │ DATA │─────┬──────► GPIO 4
+       │      │     │
+       │ GND  │───┐ │
+       └──────┘   │ │
+                  │ └────────► 10kΩ ──► 3.3V (Pull-up)
+                  └──────────► GND
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    ULTRASCHALLSENSOR (HC-SR04)                            │
+└─────────────────────────────────────────────────────────────────────────┘
+
+      HC-SR04
+     ┌────────┐
+     │  VCC   │───────────► 5V
+     │  TRIG  │───────────► GPIO 5
+     │        │
+     │  ECHO  │────┐
+     │        │    │       SPANNUNGSTEILER (5V → 3.3V):
+     │  GND   │──┐ │       ┌─── 2kΩ ────┬──► GPIO 18 (3.3V)
+     └────────┘  │ └───────┤            │
+                 │         └─── 1kΩ ────┴──► GND
+                 └─────────────────────────► GND
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    4-KANAL RELAIS + PUMPEN                                │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    ESP32                      RELAIS MODUL                    PUMPEN
+  ┌────────┐                 ┌────────────┐
+  │ GPIO13 ├─────────────────┤ IN1        │
+  │ GPIO12 ├─────────────────┤ IN2        │
+  │ GPIO14 ├─────────────────┤ IN3        │
+  │ GPIO27 ├─────────────────┤ IN4        │
+  │   5V   ├─────────────────┤ VCC        │
+  │  GND   ├─────────────────┤ GND        │
+  └────────┘                 │            │
+                             │ JD-VCC ────┼───► 12V (+)
+                             │            │
+     12V Netzteil            │  COM   ────┼───► 12V (+)
+    ┌──────────┐             │            │
+    │    +     │─────────────┤ NO1    ────┼───► Pumpe 1 (+)
+    │          │             │ NO2    ────┼───► Pumpe 2 (+)
+    │    -     │──┬──────────┤ NO3    ────┼───► Pumpe 3 (+)
+    └──────────┘  │          │ NO4    ────┼───► Pumpe 4 (+)
+                  │          └────────────┘
+                  │
+                  ├────────────────────────────► Pumpe 1 (-)
+                  ├────────────────────────────► Pumpe 2 (-)
+                  ├────────────────────────────► Pumpe 3 (-)
+                  └────────────────────────────► Pumpe 4 (-)
+
+    WICHTIG: Jumper zwischen VCC und JD-VCC am Relais entfernen!
+             JD-VCC mit externem 12V versorgen für Pumpen!
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    E-INK DISPLAY (SPI)                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    Waveshare 1.54" E-Ink
+       ┌──────────┐
+       │   VCC    │───────────► 3.3V
+       │   GND    │───────────► GND
+       │   DIN    │───────────► GPIO 23 (MOSI)
+       │   CLK    │───────────► GPIO 18 (SCK)
+       │    CS    │───────────► GPIO 15
+       │    DC    │───────────► GPIO 2
+       │   RST    │───────────► GPIO 0
+       │   BUSY   │───────────► GPIO 16
+       └──────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    STROMVERSORGUNG                                        │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    ┌─────────────┐
+    │  USB-C 5V   │───────────► ESP32-S3 (via USB-C Port)
+    └─────────────┘
+
+    ┌─────────────┐
+    │   12V DC    │───────────► Relais JD-VCC
+    │  Netzteil   │───────────► Pumpen (via Relais)
+    └─────────────┘
+
+    Empfohlene Leistung: 12V, 2A (24W)
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    PIN-BELEGUNG ZUSAMMENFASSUNG                           │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    GPIO 0  ──► E-Ink RST
+    GPIO 2  ──► E-Ink DC
+    GPIO 4  ──► DHT11 DATA
+    GPIO 5  ──► Ultrasonic TRIG
+    GPIO 12 ──► Relais IN2 (Pumpe 2)
+    GPIO 13 ──► Relais IN1 (Pumpe 1)
+    GPIO 14 ──► Relais IN3 (Pumpe 3)
+    GPIO 15 ──► E-Ink CS
+    GPIO 16 ──► E-Ink BUSY
+    GPIO 18 ──► Ultrasonic ECHO (mit Spannungsteiler!)
+    GPIO 18 ──► E-Ink CLK (shared mit Ultrasonic, siehe Hinweis unten)
+    GPIO 23 ──► E-Ink DIN
+    GPIO 27 ──► Relais IN4 (Pumpe 4)
+    GPIO 34 ──► Moisture Sensor 3 (ADC)
+    GPIO 35 ──► Moisture Sensor 4 (ADC)
+    GPIO 36 ──► Moisture Sensor 1 (ADC)
+    GPIO 39 ──► Moisture Sensor 2 (ADC)
+
+    HINWEIS: GPIO 18 wird sowohl für E-Ink CLK als auch Ultrasonic ECHO verwendet.
+             Falls Konflikte auftreten, ändern Sie einen der Pins in main.py.
+             Empfehlung: Ultrasonic ECHO auf GPIO 19 ändern.
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    VERKABELUNGS-CHECKLISTE                                │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    □ Alle 3.3V Verbindungen an ESP32 3.3V Pin
+    □ Alle GND Verbindungen an ESP32 GND Pin
+    □ DHT11 Pull-up Widerstand (10kΩ) installiert
+    □ Ultraschall-Spannungsteiler (2kΩ + 1kΩ) installiert
+    □ Relais VCC an ESP32 5V angeschlossen
+    □ Relais JD-VCC an externes 12V Netzteil angeschlossen
+    □ Jumper zwischen VCC und JD-VCC am Relais ENTFERNT
+    □ Alle Pumpen korrekt gepolt (+ an NO, - an 12V GND)
+    □ 12V Netzteil hat ausreichende Leistung (min. 2A)
+    □ Alle Kabelverbindungen fest und isoliert
+    □ Keine Kurzschlüsse zwischen + und - Leitungen
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    SICHERHEITSHINWEISE                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    ⚠️  ESP32 verträgt MAXIMAL 3.3V an GPIO-Pins!
+    ⚠️  Ultraschall ECHO gibt 5V aus → Spannungsteiler ZWINGEND erforderlich!
+    ⚠️  Relais-Spulen benötigen separate 12V Versorgung (JD-VCC)
+    ⚠️  Pumpen dürfen nicht trocken laufen → Mindest-Wasserstand beachten!
+    ⚠️  Elektronik vor Feuchtigkeit schützen
+    ⚠️  Vor Wartung: Stromversorgung trennen!
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                    VIEL ERFOLG MIT IHREM PROJEKT!                         ║
+╚═══════════════════════════════════════════════════════════════════════════╝
