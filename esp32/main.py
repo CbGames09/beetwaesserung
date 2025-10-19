@@ -57,7 +57,7 @@ PUMP_4_DAILY_RUN = 10  # Pump 4 runs for 10 seconds daily when only 3 plants act
 
 # NTP Configuration
 NTP_HOST = "pool.ntp.org"  # NTP server
-TIMEZONE_OFFSET = 1  # UTC+1 for Germany (change to 2 for summer time)
+# Timezone wird automatisch erkannt (MEZ/MESZ für Deutschland)
 
 # =============================================================================
 # HARDWARE INITIALIZATION
@@ -280,24 +280,92 @@ class WateringSystem:
                 return False
         return True
     
+    def is_dst(self, year, month, day, hour):
+        """
+        Prüft ob Sommerzeit (DST) in Deutschland/EU aktiv ist
+        Sommerzeit: letzter Sonntag im März 02:00 bis letzter Sonntag im Oktober 03:00
+        """
+        # Finde letzten Sonntag im März
+        march_last_sunday = 31
+        while True:
+            # Wochentag berechnen (0=Montag, 6=Sonntag)
+            # Vereinfachte Berechnung (Zeller's Congruence)
+            if march_last_sunday <= 0:
+                break
+            m = 3  # März
+            y = year
+            d = march_last_sunday
+            if m < 3:
+                m += 12
+                y -= 1
+            weekday = (d + ((13 * (m + 1)) // 5) + y + (y // 4) - (y // 100) + (y // 400)) % 7
+            if weekday == 0:  # Sonntag
+                break
+            march_last_sunday -= 1
+        
+        # Finde letzten Sonntag im Oktober
+        october_last_sunday = 31
+        while True:
+            if october_last_sunday <= 0:
+                break
+            m = 10  # Oktober
+            y = year
+            d = october_last_sunday
+            weekday = (d + ((13 * (m + 1)) // 5) + y + (y // 4) - (y // 100) + (y // 400)) % 7
+            if weekday == 0:  # Sonntag
+                break
+            october_last_sunday -= 1
+        
+        # Prüfe ob Sommerzeit
+        if month < 3 or month > 10:
+            return False  # Winterzeit
+        elif month > 3 and month < 10:
+            return True   # Sommerzeit
+        elif month == 3:
+            # März: Sommerzeit ab letztem Sonntag 02:00
+            if day < march_last_sunday:
+                return False
+            elif day > march_last_sunday:
+                return True
+            else:  # Genau am letzten Sonntag
+                return hour >= 2
+        else:  # month == 10
+            # Oktober: Winterzeit ab letztem Sonntag 03:00
+            if day < october_last_sunday:
+                return True
+            elif day > october_last_sunday:
+                return False
+            else:  # Genau am letzten Sonntag
+                return hour < 3
+    
+    def get_timezone_offset(self):
+        """Automatische Erkennung von MEZ (UTC+1) oder MESZ (UTC+2)"""
+        # Hole UTC Zeit
+        utc = time.localtime(time.time())
+        year, month, day, hour = utc[0], utc[1], utc[2], utc[3]
+        
+        # Prüfe Sommerzeit
+        if self.is_dst(year, month, day, hour):
+            return 2  # MESZ (Sommerzeit)
+        else:
+            return 1  # MEZ (Winterzeit)
+    
     def sync_time(self):
         """Synchronize time with NTP server"""
         try:
             print("→ Synchronizing time with NTP server...")
             ntptime.settime()
             
-            # Get current UTC time
-            rtc = RTC()
-            utc_time = rtc.datetime()
-            
-            # Apply timezone offset (convert hours to seconds)
-            offset_seconds = TIMEZONE_OFFSET * 3600
+            # Automatische Timezone-Erkennung
+            offset_hours = self.get_timezone_offset()
+            offset_seconds = offset_hours * 3600
             current_timestamp = time.time() + offset_seconds
             
             # Convert to readable format
             year, month, day, hour, minute, second, _, _ = time.localtime(current_timestamp)
             
-            print(f"✓ Time synchronized: {year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}:{second:02d}")
+            timezone_name = "MESZ (Sommerzeit)" if offset_hours == 2 else "MEZ (Winterzeit)"
+            print(f"✓ Time synchronized: {year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}:{second:02d} {timezone_name}")
             print(f"  Unix Timestamp: {int(current_timestamp * 1000)} ms")
             
         except Exception as e:
@@ -306,12 +374,14 @@ class WateringSystem:
     
     def get_timestamp(self):
         """Get current timestamp in milliseconds (with timezone offset) - for Firebase"""
-        offset_seconds = TIMEZONE_OFFSET * 3600
+        offset_hours = self.get_timezone_offset()
+        offset_seconds = offset_hours * 3600
         return int((time.time() + offset_seconds) * 1000)
     
     def get_time(self):
         """Get current time in seconds (with timezone offset) - for calculations"""
-        offset_seconds = TIMEZONE_OFFSET * 3600
+        offset_hours = self.get_timezone_offset()
+        offset_seconds = offset_hours * 3600
         return time.time() + offset_seconds
     
     def load_settings(self):

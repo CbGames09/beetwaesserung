@@ -24,19 +24,27 @@ def sync_time(self):
 
 ## Konfiguration
 
-### Timezone einstellen
+### ✅ Automatische Sommerzeit/Winterzeit-Erkennung
 
-In `esp32/main.py` Zeile 63:
+**Keine manuelle Konfiguration nötig!** Der ESP32 erkennt automatisch:
+
+- **MEZ (Winterzeit)**: UTC+1 (Oktober - März)
+- **MESZ (Sommerzeit)**: UTC+2 (März - Oktober)
+
+Die Umstellung erfolgt nach EU-Regeln:
+- **Sommerzeit beginnt**: Letzter Sonntag im März, 02:00 Uhr
+- **Winterzeit beginnt**: Letzter Sonntag im Oktober, 03:00 Uhr
 
 ```python
-# NTP Configuration
-NTP_HOST = "pool.ntp.org"  # NTP server
-TIMEZONE_OFFSET = 1  # UTC+1 for Germany (change to 2 for summer time)
+# In esp32/main.py:
+def get_timezone_offset(self):
+    """Automatische Erkennung von MEZ oder MESZ"""
+    # Berechnet automatisch ob Sommer- oder Winterzeit!
+    if self.is_dst(year, month, day, hour):
+        return 2  # MESZ (Sommerzeit)
+    else:
+        return 1  # MEZ (Winterzeit)
 ```
-
-**Wichtig:** 
-- **Winterzeit (Oktober - März)**: `TIMEZONE_OFFSET = 1` 
-- **Sommerzeit (März - Oktober)**: `TIMEZONE_OFFSET = 2`
 
 ### NTP-Server ändern
 
@@ -58,8 +66,13 @@ NTP_HOST = "ptbtime1.ptb.de"
 → Connecting to WiFi: MeinWLAN
 ✓ WiFi connected: 192.168.1.100
 → Synchronizing time with NTP server...
-✓ Time synchronized: 2025-10-19 14:30:45
+✓ Time synchronized: 2025-10-19 14:30:45 MEZ (Winterzeit)
   Unix Timestamp: 1729349445000 ms
+```
+
+**Im Sommer:**
+```
+✓ Time synchronized: 2025-07-15 14:30:45 MESZ (Sommerzeit)
 ```
 
 ### 2. Verwendung in Timestamps
@@ -117,11 +130,14 @@ timestamp: 1729349700000 → Website zeigt: 2025-10-19 14:35:00 ✓
 
 ### Zeit ist 1 Stunde falsch
 
-**Problem**: Sommerzeit/Winterzeit nicht angepasst
+**Problem**: Automatische Zeitzone-Erkennung funktioniert nicht korrekt
 
-**Lösung**: `TIMEZONE_OFFSET` in `main.py` ändern:
-- **Sommerzeit**: `TIMEZONE_OFFSET = 2`
-- **Winterzeit**: `TIMEZONE_OFFSET = 1`
+**Lösung**: 
+1. **Prüfen Sie die Ausgabe beim Start**: Steht dort "MEZ" oder "MESZ"?
+2. **Datum prüfen**: Ist das aktuelle Datum korrekt? (NTP-Sync erfolgreich?)
+3. **Manuelle Prüfung**: 
+   - Januar - Februar: Sollte MEZ (UTC+1) sein
+   - Juni - August: Sollte MESZ (UTC+2) sein
 
 ### Timestamps sind immer noch falsch
 
@@ -170,8 +186,12 @@ timestamp_ms = int(local_time * 1000)  # 1729349400000
 
 ✅ **Automatische Zeit-Synchronisierung** über NTP beim WiFi-Connect  
 ✅ **Korrekte Timestamps** in Firebase (mit Datum & Uhrzeit)  
-✅ **Timezone-Unterstützung** für Deutschland (UTC+1/+2)  
+✅ **Automatische Sommer-/Winterzeit-Erkennung** für Deutschland (MEZ/MESZ)  
 ✅ **Fehlerbehandlung** wenn NTP nicht erreichbar ist  
 ✅ **Alle Zeitberechnungen** verwenden korrekte Zeit  
 
 **Keine manuelle Konfiguration nötig** - funktioniert automatisch! 🎉
+
+### 🌍 Für andere Länder
+
+Wenn Sie in einem anderen Land sind, müssen Sie die Sommerzeit-Regeln in der `is_dst()` Funktion anpassen. Die aktuelle Implementierung folgt den **EU-Regeln** (Deutschland, Österreich, Schweiz, etc.).
