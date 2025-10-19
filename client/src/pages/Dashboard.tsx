@@ -232,7 +232,7 @@ export default function Dashboard() {
         onOpenChange={setShowHistory}
       />
 
-      <DevPanel />
+      <DevPanel settings={settings} />
     </div>
   );
 }
