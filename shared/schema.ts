@@ -110,6 +110,19 @@ export const systemStatusSchema = z.object({
 
 export type SystemStatus = z.infer<typeof systemStatusSchema>;
 
+// ===== System Error Schema =====
+
+export const systemErrorSchema = z.object({
+  timestamp: z.number(),
+  errorType: z.enum(["sensor", "pump", "connectivity", "general"]),
+  component: z.string(), // e.g., "DHT11", "Moisture Sensor 1", "Pump 2", "Firebase"
+  message: z.string(),
+  severity: z.enum(["info", "warning", "error"]),
+  resolved: z.boolean().default(false),
+});
+
+export type SystemError = z.infer<typeof systemErrorSchema>;
+
 // ===== Default Values =====
 
 export const defaultPlantProfiles: PlantProfile[] = [

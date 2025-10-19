@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, onValue, set, update, get, query, orderByChild, startAt, endAt, push } from 'firebase/database';
+import { getDatabase, ref, onValue, set, update, get, query, orderByChild, startAt, endAt, push, remove } from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -19,4 +19,4 @@ console.log("Project ID:", firebaseConfig.projectId ? "✓ Set" : "✗ Missing")
 const app = initializeApp(firebaseConfig);
 export const database = getDatabase(app);
 
-export { ref, onValue, set, update, get, query, orderByChild, startAt, endAt, push };
+export { ref, onValue, set, update, get, query, orderByChild, startAt, endAt, push, remove };

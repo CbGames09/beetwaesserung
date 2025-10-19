@@ -86,56 +86,44 @@ class HardwareController:
         print("✓ Hardware initialized")
     
     def read_moisture(self, sensor_id):
-        """Read moisture sensor (0-100%)"""
-        try:
-            raw = self.moisture_adcs[sensor_id].read()
-            # Calibration: 4095 (dry) -> 0%, 1200 (wet) -> 100%
-            # Adjust these values based on your sensor calibration
-            dry_value = 4095
-            wet_value = 1200
-            moisture = 100 - ((raw - wet_value) * 100 / (dry_value - wet_value))
-            return max(0, min(100, moisture))
-        except Exception as e:
-            print(f"✗ Error reading moisture sensor {sensor_id}: {e}")
-            return 0
+        """Read moisture sensor (0-100%) - raises exception on error"""
+        raw = self.moisture_adcs[sensor_id].read()
+        # Calibration: 4095 (dry) -> 0%, 1200 (wet) -> 100%
+        # Adjust these values based on your sensor calibration
+        dry_value = 4095
+        wet_value = 1200
+        moisture = 100 - ((raw - wet_value) * 100 / (dry_value - wet_value))
+        return max(0, min(100, moisture))
     
     def read_dht11(self):
-        """Read temperature and humidity from DHT11"""
-        try:
-            self.dht_sensor.measure()
-            temp = self.dht_sensor.temperature()
-            humidity = self.dht_sensor.humidity()
-            return temp, humidity
-        except Exception as e:
-            print(f"✗ Error reading DHT11: {e}")
-            return 0, 0
+        """Read temperature and humidity from DHT11 - raises exception on error"""
+        self.dht_sensor.measure()
+        temp = self.dht_sensor.temperature()
+        humidity = self.dht_sensor.humidity()
+        return temp, humidity
     
     def read_ultrasonic(self):
-        """Read distance from ultrasonic sensor (cm)"""
-        try:
-            self.trigger.value(0)
-            time.sleep_us(2)
-            self.trigger.value(1)
-            time.sleep_us(10)
-            self.trigger.value(0)
-            
-            # Wait for echo
-            timeout = 30000
-            start = time.ticks_us()
-            while self.echo.value() == 0 and time.ticks_diff(time.ticks_us(), start) < timeout:
-                pass
-            time_start = time.ticks_us()
-            
-            while self.echo.value() == 1 and time.ticks_diff(time.ticks_us(), start) < timeout:
-                pass
-            time_end = time.ticks_us()
-            
-            duration = time.ticks_diff(time_end, time_start)
-            distance = (duration * 0.0343) / 2  # Speed of sound = 343 m/s
-            return distance
-        except Exception as e:
-            print(f"✗ Error reading ultrasonic: {e}")
-            return 0
+        """Read distance from ultrasonic sensor (cm) - raises exception on error"""
+        self.trigger.value(0)
+        time.sleep_us(2)
+        self.trigger.value(1)
+        time.sleep_us(10)
+        self.trigger.value(0)
+        
+        # Wait for echo
+        timeout = 30000
+        start = time.ticks_us()
+        while self.echo.value() == 0 and time.ticks_diff(time.ticks_us(), start) < timeout:
+            pass
+        time_start = time.ticks_us()
+        
+        while self.echo.value() == 1 and time.ticks_diff(time.ticks_us(), start) < timeout:
+            pass
+        time_end = time.ticks_us()
+        
+        duration = time.ticks_diff(time_end, time_start)
+        distance = (duration * 0.0343) / 2  # Speed of sound = 343 m/s
+        return distance
     
     def activate_pump(self, pump_id, duration=WATERING_DURATION):
         """Activate pump for specified duration"""
@@ -157,6 +145,44 @@ class HardwareController:
 class FirebaseClient:
     def __init__(self, base_url):
         self.base_url = base_url.rstrip('/')
+        self.error_count = 0  # Track errors to avoid spam
+    
+    def log_error(self, error_type, component, message, severity="error"):
+        """Log error to Firebase with automatic cleanup"""
+        try:
+            # Get existing errors
+            existing_errors = self.get("systemErrors") or {}
+            
+            # Create new error entry
+            self.error_count += 1
+            error_key = f"error_{int(time.time())}_{self.error_count}"
+            error_data = {
+                "timestamp": int(time.time() * 1000),
+                "errorType": error_type,  # "sensor", "pump", "connectivity", "general"
+                "component": component,
+                "message": message,
+                "severity": severity,  # "info", "warning", "error"
+                "resolved": False
+            }
+            
+            # Add new error
+            existing_errors[error_key] = error_data
+            
+            # Keep only 10 most recent errors
+            if len(existing_errors) > 10:
+                # Sort by timestamp and keep newest 10
+                sorted_errors = sorted(
+                    existing_errors.items(),
+                    key=lambda x: x[1]["timestamp"],
+                    reverse=True
+                )[:10]
+                existing_errors = dict(sorted_errors)
+            
+            # Update Firebase with cleaned error list
+            self.put("systemErrors", existing_errors)
+            
+        except Exception as e:
+            print(f"✗ Failed to log error to Firebase: {e}")
     
     def get(self, path):
         """GET request to Firebase"""
@@ -262,14 +288,32 @@ class WateringSystem:
     
     def read_all_sensors(self):
         """Read all sensor data"""
-        # Read moisture sensors
-        moisture = [self.hw.read_moisture(i) for i in range(4)]
+        # Read moisture sensors with error handling
+        moisture = []
+        for i in range(4):
+            try:
+                value = self.hw.read_moisture(i)
+                moisture.append(value)
+            except Exception as e:
+                moisture.append(0)
+                self.fb.log_error("sensor", f"Moisture Sensor {i+1}", f"{str(e)}", "error")
         
-        # Read DHT11
-        temp, humidity = self.hw.read_dht11()
+        # Read DHT11 with error handling
+        try:
+            temp, humidity = self.hw.read_dht11()
+            # Log warning if sensor returns zeros (might indicate connection issue)
+            if temp == 0 and humidity == 0:
+                self.fb.log_error("sensor", "DHT11", "Sensor gibt Nullwerte zurück", "warning")
+        except Exception as e:
+            temp, humidity = 0, 0
+            self.fb.log_error("sensor", "DHT11", f"{str(e)}", "error")
         
-        # Read ultrasonic (water level)
-        distance_cm = self.hw.read_ultrasonic()
+        # Read ultrasonic (water level) with error handling
+        try:
+            distance_cm = self.hw.read_ultrasonic()
+        except Exception as e:
+            distance_cm = 0
+            self.fb.log_error("sensor", "Ultrasonic", f"{str(e)}", "error")
         
         # Calculate water level percentage
         if distance_cm <= TANK_FULL_DISTANCE:

@@ -5,6 +5,7 @@ import { PlantCard } from "@/components/PlantCard";
 import { SensorCard } from "@/components/SensorCard";
 import { WaterTankCard } from "@/components/WaterTankCard";
 import { SystemTestCard } from "@/components/SystemTestCard";
+import { ErrorsCard } from "@/components/ErrorsCard";
 import { PINDialog } from "@/components/PINDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { HistoryDialog } from "@/components/HistoryDialog";
@@ -193,9 +194,12 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="mt-12">
-          <h2 className="text-2xl font-semibold mb-6">Systemstatus</h2>
-          <SystemTestCard testResult={testResult} nextTestTime={nextTestTime} />
+        <div className="mt-12 space-y-6">
+          <h2 className="text-2xl font-semibold">Systemstatus</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <SystemTestCard testResult={testResult} nextTestTime={nextTestTime} />
+            <ErrorsCard />
+          </div>
         </div>
       </main>
 
