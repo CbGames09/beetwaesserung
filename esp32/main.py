@@ -243,6 +243,14 @@ class FirebaseClient:
         """Clear manual watering command"""
         return self.put("manualWatering", None)
     
+    def get_manual_test_trigger(self):
+        """Check for manual test trigger"""
+        return self.get("manualTest")
+    
+    def clear_manual_test_trigger(self):
+        """Clear manual test trigger"""
+        return self.put("manualTest", {"trigger": False, "timestamp": 0})
+    
     def update_test_result(self, result):
         """Update test result in Firebase"""
         return self.put("lastTest", result)
@@ -466,6 +474,17 @@ class WateringSystem:
             self.hw.activate_pump(plant_id, duration)
             self.fb.clear_manual_watering()
     
+    def check_manual_test_trigger(self):
+        """Check if manual test was triggered from website"""
+        trigger_data = self.fb.get_manual_test_trigger()
+        if trigger_data and trigger_data.get('trigger'):
+            print("! Manual system test triggered from website")
+            # Clear trigger immediately to prevent repeated execution
+            self.fb.clear_manual_test_trigger()
+            # Execute test and update last test time
+            self.execute_system_test()
+            self.last_test_time = self.get_time()  # Prevent immediate weekly test
+    
     def run_daily_pump4_maintenance(self):
         """Run pump 4 daily for 10 seconds if only 3 plants active"""
         if self.settings and self.settings['numberOfPlants'] == 3:
@@ -476,14 +495,10 @@ class WateringSystem:
                 self.hw.activate_pump(3, PUMP_4_DAILY_RUN)
                 self.hw.last_pump4_run = current_time
     
-    def run_system_test(self):
-        """Run weekly system test"""
-        current_time = self.get_time()  # Get time in seconds with timezone
-        if current_time - self.last_test_time < self.test_interval:
-            return
-        
+    def execute_system_test(self):
+        """Execute the actual system test (called by both weekly and manual triggers)"""
         print("=" * 50)
-        print("STARTING WEEKLY SYSTEM TEST")
+        print("STARTING SYSTEM TEST")
         print("=" * 50)
         
         result = {
@@ -578,11 +593,20 @@ class WateringSystem:
         
         # Upload test result
         self.fb.update_test_result(result)
-        self.last_test_time = current_time
         
         print("=" * 50)
         print(f"TEST COMPLETE: {result['overallStatus'].upper()}")
         print("=" * 50)
+    
+    def run_system_test(self):
+        """Run weekly system test (scheduled)"""
+        current_time = self.get_time()  # Get time in seconds with timezone
+        if current_time - self.last_test_time < self.test_interval:
+            return
+        
+        # Execute test and update last test time
+        self.execute_system_test()
+        self.last_test_time = current_time
     
     def update_display_status(self, status):
         """Update E-Ink display with system status icon"""
@@ -604,6 +628,11 @@ class WateringSystem:
         
         # Load settings
         self.load_settings()
+        
+        # Run automatic system test on startup
+        print("\n→ Running automatic system test after restart...")
+        self.execute_system_test()
+        self.last_test_time = self.get_time()  # Prevent immediate weekly test
         
         # Main loop
         while True:
@@ -638,13 +667,16 @@ class WateringSystem:
                 # Check for manual watering commands
                 self.check_manual_watering()
                 
+                # Check for manual test trigger from website
+                self.check_manual_test_trigger()
+                
                 # Auto-watering based on moisture levels
                 self.check_and_water(sensor_data)
                 
                 # Daily pump 4 maintenance
                 self.run_daily_pump4_maintenance()
                 
-                # Weekly system test
+                # Weekly system test (scheduled)
                 self.run_system_test()
                 
                 # Reload settings (in case they changed)

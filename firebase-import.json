@@ -72,5 +72,11 @@
     "pumpTests": [true, true, true, true],
     "connectivityTest": true,
     "details": "Alle Tests erfolgreich abgeschlossen"
-  }
+  },
+  "manualTest": {
+    "trigger": false,
+    "timestamp": 0
+  },
+  "manualWatering": null,
+  "systemErrors": {}
 }

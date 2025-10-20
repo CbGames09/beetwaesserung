@@ -6,9 +6,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ShieldCheck, ShieldAlert, ShieldX, ChevronDown } from "lucide-react";
+import { ShieldCheck, ShieldAlert, ShieldX, ChevronDown, Play } from "lucide-react";
 import { useState } from "react";
 import type { SystemTestResult } from "@shared/schema";
+import { database } from "@/lib/firebase";
+import { ref, set } from "firebase/database";
+import { useToast } from "@/hooks/use-toast";
 
 interface SystemTestCardProps {
   testResult?: SystemTestResult;
@@ -17,6 +20,8 @@ interface SystemTestCardProps {
 
 export function SystemTestCard({ testResult, nextTestTime }: SystemTestCardProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isTriggering, setIsTriggering] = useState(false);
+  const { toast } = useToast();
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleString("de-DE", {
@@ -51,6 +56,31 @@ export function SystemTestCard({ testResult, nextTestTime }: SystemTestCardProps
     return `Nächster Test: in ${days} Tag${days > 1 ? "en" : ""}`;
   };
 
+  const handleTriggerTest = async () => {
+    setIsTriggering(true);
+    try {
+      const manualTestRef = ref(database, "manualTest");
+      await set(manualTestRef, {
+        trigger: true,
+        timestamp: Date.now(),
+      });
+      
+      toast({
+        title: "Systemtest gestartet",
+        description: "Der ESP32 führt jetzt den Systemtest durch. Ergebnisse erscheinen in Kürze.",
+      });
+    } catch (error) {
+      console.error("Failed to trigger manual test:", error);
+      toast({
+        title: "Fehler",
+        description: "Systemtest konnte nicht gestartet werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTriggering(false);
+    }
+  };
+
   return (
     <Card className="p-6">
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -70,15 +100,28 @@ export function SystemTestCard({ testResult, nextTestTime }: SystemTestCardProps
             </div>
           </div>
 
-          {testResult && (
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" data-testid="button-toggle-test-details">
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
-                />
-              </Button>
-            </CollapsibleTrigger>
-          )}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleTriggerTest}
+              disabled={isTriggering}
+              data-testid="button-trigger-manual-test"
+            >
+              <Play className="h-4 w-4 mr-2" />
+              {isTriggering ? "Starte..." : "Test starten"}
+            </Button>
+            
+            {testResult && (
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" data-testid="button-toggle-test-details">
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                  />
+                </Button>
+              </CollapsibleTrigger>
+            )}
+          </div>
         </div>
 
         {testResult && (

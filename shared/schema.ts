@@ -100,6 +100,15 @@ export const manualWateringSchema = z.object({
 
 export type ManualWatering = z.infer<typeof manualWateringSchema>;
 
+// ===== Manual Test Trigger Schema =====
+
+export const manualTestTriggerSchema = z.object({
+  trigger: z.boolean().default(false),
+  timestamp: z.number().default(0),
+});
+
+export type ManualTestTrigger = z.infer<typeof manualTestTriggerSchema>;
+
 // ===== System Status Schema =====
 
 export const systemStatusSchema = z.object({
