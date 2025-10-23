@@ -15,6 +15,8 @@ Erweiterte Features - In Entwicklung:
 - ✅ Historische Datenspeicherung und Visualisierung (Recharts)
 - ✅ E-Mail-Benachrichtigungen für kritische Ereignisse
 - ✅ Saisonale Pflanzenprofile mit automatischer Schwellwert-Anpassung
+- ✅ Robuste NTP-Synchronisation (4 Server, Auto-Fallback)
+- ✅ Hardware-Fehler auf Website sichtbar (NTP, E-Ink Display)
 - ⏳ CSV-Datenexport
 - ⏳ Progressive Web App (PWA) mit Offline-Funktionalität
 
@@ -181,13 +183,12 @@ Das Design-System basiert auf Material Design Prinzipien für IoT-Dashboards:
 
 Details siehe `design_guidelines.md`
 
-## Nächste Schritte
+## Hardware Troubleshooting
 
-1. ✅ Frontend-Komponenten und Schema erstellt
-2. ⏳ Backend Integration mit Firebase
-3. ⏳ ESP32 MicroPython Code entwickeln
-4. ⏳ E-Ink Display Ansteuerung
-5. ⏳ GitHub Pages Deployment vorbereiten
+Bei Hardware-Problemen siehe `esp32/TROUBLESHOOTING.md`:
+- **NTP Timeout**: Versucht automatisch 4 Server, Fehler auf Website sichtbar
+- **E-Ink Display**: Detaillierte Diagnostik, Fehler auf Website sichtbar
+- **Robustes System**: Läuft weiter auch wenn Hardware fehlschlägt
 
 ## Spezielle Features
 
