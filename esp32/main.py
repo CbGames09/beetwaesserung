@@ -28,27 +28,27 @@ FIREBASE_URL = "https://YOUR-PROJECT-default-rtdb.YOUR-REGION.firebasedatabase.a
 # IMPORTANT: ESP32-S3 ADC1 = GPIO 1-10, ADC2 = GPIO 11-20
 # ADC2 does NOT work with WiFi! Use ADC1 pins only!
 # ⚠️ WARNING: GPIO 0, 1, 2, 3 are STRAPPING PINS - do NOT use for ADC!
-MOISTURE_PINS = [4, 5, 6, 7]  # GPIO pins for ADC (ADC1_CH3, CH4, CH5, CH6)
+MOISTURE_PINS = [13, 2, 3, 4]  # GPIO pins for ADC (ADC1_CH3, CH4, CH5, CH6)
 
 # DHT11 Sensor
-DHT_PIN = 8  # Changed to avoid ADC pin conflict
+DHT_PIN = 17  # Changed to avoid ADC pin conflict
 
 # Ultrasonic Sensor
 ULTRASONIC_TRIGGER = 9
 ULTRASONIC_ECHO = 10
 
 # Relay Pins (for pumps) - Using safe GPIO pins
-RELAY_PINS = [11, 12, 13, 14]
+RELAY_PINS = [5, 6, 7, 8]
 
 # E-Ink Display (SPI) - Waveshare 1.54" 3-Color (8 Pins)
 # Standard SPI Pins (Hardware SPI)
-EINK_MOSI = 35   # DIN (Data In)
-EINK_CLK = 36    # CLK (Clock)
+EINK_MOSI = 38   # DIN (Data In)
+EINK_CLK = 48    # CLK (Clock)
 # Control Pins (können frei gewählt werden)
-EINK_CS = 37     # CS (Chip Select)
-EINK_DC = 38     # DC (Data/Command)
-EINK_RST = 39    # RST (Reset)
-EINK_BUSY = 40   # BUSY (Busy Signal)
+EINK_CS = 21     # CS (Chip Select)
+EINK_DC = 18     # DC (Data/Command)
+EINK_RST = 44   # RST (Reset)
+EINK_BUSY = 43  # BUSY (Busy Signal)
 # VCC = 3.3V, GND = Ground (nicht konfigurierbar)
 
 # Water Tank Configuration (in cm)
@@ -58,8 +58,8 @@ TANK_FULL_DISTANCE = 5  # Distance from sensor to full tank (cm)
 
 # System Configuration
 MEASUREMENT_INTERVAL = 300  # Default: 5 minutes (will be overridden from Firebase)
-WATERING_DURATION = 10  # Default watering duration in seconds
-PUMP_4_DAILY_RUN = 10  # Pump 4 runs for 10 seconds daily when only 3 plants active
+WATERING_DURATION = 5  # Pump 4 runs for 10 seconds daily when only 3 plants active
+PUMP_4_DAILY_RUN = 5  # Pump 4 runs for 10 seconds daily when only 3 plants active
 
 # NTP Configuration
 NTP_HOST = "pool.ntp.org"  # NTP server
