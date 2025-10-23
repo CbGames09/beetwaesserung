@@ -296,11 +296,14 @@ class WateringSystem:
             
             if self.hw.wlan.isconnected():
                 print(f"\n✓ WiFi connected: {self.hw.wlan.ifconfig()[0]}")
-                self.sync_time()
-                return True
             else:
                 print("\n✗ WiFi connection failed")
                 return False
+        else:
+            print(f"✓ WiFi already connected: {self.hw.wlan.ifconfig()[0]}")
+        
+        # ALWAYS sync time after WiFi is connected (whether new or existing connection)
+        self.sync_time()
         return True
     
     def is_dst(self, year, month, day, hour):
