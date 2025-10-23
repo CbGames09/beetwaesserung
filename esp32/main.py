@@ -377,39 +377,64 @@ class WateringSystem:
             return 1  # MEZ (Winterzeit)
     
     def sync_time(self):
-        """Synchronize time with NTP server"""
-        try:
-            print("\n" + "="*50)
-            print("NTP TIME SYNCHRONIZATION")
-            print("="*50)
-            print("→ Synchronizing time with NTP server...")
-            
-            # Get NTP time (returns seconds since 1900, NOT 1970!)
-            ntptime.settime()
-            
-            # DEBUG: Show raw system time after NTP
-            raw_time = time.time()
-            print(f"[DEBUG] Raw time.time() after ntptime: {raw_time}")
-            print(f"[DEBUG] Raw localtime: {time.localtime(raw_time)}")
-            
-            # Automatische Timezone-Erkennung
-            offset_hours = self.get_timezone_offset()
-            offset_seconds = offset_hours * 3600
-            current_timestamp = time.time() + offset_seconds
-            
-            # Convert to readable format
-            year, month, day, hour, minute, second, _, _ = time.localtime(current_timestamp)
-            
-            timezone_name = "MESZ (Sommerzeit)" if offset_hours == 2 else "MEZ (Winterzeit)"
-            print(f"\n✓ Time synchronized successfully!")
-            print(f"  Date/Time: {day:02d}.{month:02d}.{year} {hour:02d}:{minute:02d}:{second:02d}")
-            print(f"  Timezone: {timezone_name} (UTC+{offset_hours})")
-            print(f"  Unix Timestamp: {int(current_timestamp * 1000)} ms")
-            print("="*50 + "\n")
-            
-        except Exception as e:
-            print(f"✗ Time sync failed: {e}")
-            print("  Using system time (may be incorrect)")
+        """Synchronize time with NTP server - tries multiple servers"""
+        print("\n" + "="*50)
+        print("NTP TIME SYNCHRONIZATION")
+        print("="*50)
+        
+        # Liste von NTP-Servern (Deutschland/Europa)
+        ntp_servers = [
+            "de.pool.ntp.org",     # Deutschland
+            "europe.pool.ntp.org", # Europa
+            "pool.ntp.org",        # Global
+            "time.google.com",     # Google (Fallback)
+        ]
+        
+        for server in ntp_servers:
+            try:
+                print(f"→ Trying NTP server: {server}")
+                
+                # Set server and longer timeout
+                ntptime.host = server
+                ntptime.timeout = 5  # 5 seconds timeout
+                
+                # Get NTP time
+                ntptime.settime()
+                
+                # DEBUG: Show raw system time after NTP
+                raw_time = time.time()
+                print(f"[DEBUG] Raw time.time() after ntptime: {raw_time}")
+                print(f"[DEBUG] Raw localtime: {time.localtime(raw_time)}")
+                
+                # Automatische Timezone-Erkennung
+                offset_hours = self.get_timezone_offset()
+                offset_seconds = offset_hours * 3600
+                current_timestamp = time.time() + offset_seconds
+                
+                # Convert to readable format
+                year, month, day, hour, minute, second, _, _ = time.localtime(current_timestamp)
+                
+                timezone_name = "MESZ (Sommerzeit)" if offset_hours == 2 else "MEZ (Winterzeit)"
+                print(f"\n✓ Time synchronized successfully!")
+                print(f"  Server: {server}")
+                print(f"  Date/Time: {day:02d}.{month:02d}.{year} {hour:02d}:{minute:02d}:{second:02d}")
+                print(f"  Timezone: {timezone_name} (UTC+{offset_hours})")
+                print(f"  Unix Timestamp: {int(current_timestamp * 1000)} ms")
+                print("="*50 + "\n")
+                return  # Success - exit
+                
+            except Exception as e:
+                print(f"✗ Failed with {server}: {e}")
+                # Try next server
+        
+        # All servers failed
+        error_msg = f"All NTP servers failed (tried {len(ntp_servers)} servers)"
+        print(f"\n✗ {error_msg}")
+        print("  Using system time (may be incorrect)")
+        print("="*50 + "\n")
+        
+        # Log error to Firebase so it's visible on website
+        self.fb.log_error("ntp", "Time Synchronization", error_msg, "warning")
     
     def get_timestamp(self):
         """Get current timestamp in milliseconds (with timezone offset) - for Firebase"""
@@ -798,28 +823,37 @@ def main():
     eink = None  # Default: no display
     
     if ENABLE_EINK_DISPLAY:
-        print("\n→ Attempting E-Ink display initialization...")
+        print("\n" + "="*50)
+        print("E-INK DISPLAY INITIALIZATION")
+        print("="*50)
         try:
-            print(f"[DEBUG] Using PINs: MOSI={EINK_MOSI}, CLK={EINK_CLK}, CS={EINK_CS}, DC={EINK_DC}, RST={EINK_RST}, BUSY={EINK_BUSY}")
+            print(f"→ PIN Configuration:")
+            print(f"  MOSI={EINK_MOSI}, CLK={EINK_CLK}, CS={EINK_CS}")
+            print(f"  DC={EINK_DC}, RST={EINK_RST}, BUSY={EINK_BUSY}")
             
-            print("[DEBUG] Creating SPI bus...")
+            print("\n→ Step 1: Creating SPI bus...")
             # Create SPI bus with your PINs
             spi = SPI(2, baudrate=4000000, polarity=0, phase=0,
                       sck=Pin(EINK_CLK), mosi=Pin(EINK_MOSI))
+            print("  ✓ SPI bus created")
             
-            print("[DEBUG] Creating Pin objects...")
+            print("→ Step 2: Creating Pin objects...")
             cs_pin = Pin(EINK_CS)
             dc_pin = Pin(EINK_DC)
             rst_pin = Pin(EINK_RST)
             busy_pin = Pin(EINK_BUSY)
+            print("  ✓ Pins configured")
             
-            print("[DEBUG] Creating EPD instance...")
+            print("→ Step 3: Creating EPD instance...")
             eink = EPD(spi, cs_pin, dc_pin, rst_pin, busy_pin)
+            print("  ✓ EPD instance created")
             
-            print("[DEBUG] Initializing E-Ink display (this may take 10 seconds)...")
+            print("→ Step 4: Initializing display (timeout: 10 seconds)...")
+            print("  Waiting for BUSY pin to go LOW...")
             eink.init()
+            print("  ✓ Display initialized")
             
-            print("[DEBUG] Clearing E-Ink display...")
+            print("→ Step 5: Clearing display...")
             # Create empty frame buffers (200x200 = 5000 bytes)
             frame_black = bytearray(5000)
             frame_red = bytearray(5000)
@@ -828,12 +862,29 @@ def main():
                 frame_black[i] = 0xFF
                 frame_red[i] = 0x00
             eink.display_frame(frame_black, frame_red)
+            print("  ✓ Display cleared")
             
-            print("✓ E-Ink display ready")
+            print("\n✓ E-Ink display ready!")
+            print("="*50 + "\n")
+            
         except Exception as e:
-            print(f"⚠ E-Ink display initialization failed: {e}")
+            error_type = type(e).__name__
+            error_msg = str(e)
+            
+            print(f"\n✗ E-Ink display failed: {error_type}")
+            print(f"  Error: {error_msg}")
             print("  Continuing without display...")
+            print("="*50 + "\n")
+            
             eink = None
+            
+            # Log error to Firebase so it's visible on website
+            firebase.log_error(
+                "eink_display", 
+                "E-Ink Display Init", 
+                f"{error_type}: {error_msg}\nPINs: MOSI={EINK_MOSI}, CLK={EINK_CLK}, CS={EINK_CS}, DC={EINK_DC}, RST={EINK_RST}, BUSY={EINK_BUSY}", 
+                "warning"
+            )
     else:
         print("\n⚠ E-Ink display disabled (ENABLE_EINK_DISPLAY = False)")
     
