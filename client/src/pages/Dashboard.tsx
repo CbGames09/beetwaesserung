@@ -179,12 +179,12 @@ export default function Dashboard() {
           <SensorCard
             icon={Droplet}
             label="Luftfeuchtigkeit"
-            value={sensorData.humidity.toFixed(0)}
+            value={sensorData.humidity.toFixed(1)}
             unit="%"
             testId="text-humidity"
           />
           <WaterTankCard
-            waterLevel={sensorData.waterLevel}
+            waterLevelCm={sensorData.waterLevelCm}
             tankConfig={settings.waterTank}
           />
         </div>
