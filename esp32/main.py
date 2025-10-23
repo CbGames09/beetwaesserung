@@ -6,7 +6,7 @@ import ujson as json
 import urequests as requests
 import network
 import machine
-from machine import Pin, ADC, I2C, RTC, SPI
+from machine import Pin, ADC, I2C, RTC , SPI
 import dht
 import ntptime
 from epaper1in54b import EPD
