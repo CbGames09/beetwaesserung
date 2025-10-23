@@ -135,8 +135,13 @@ class EPD:
         self.set_lut_bw()
         self.set_lut_red()
 
-    def wait_until_idle(self):
+    def wait_until_idle(self, timeout_ms=10000):
+        """Wait until display is idle with timeout"""
+        from time import ticks_ms, ticks_diff
+        start = ticks_ms()
         while self.busy.value() == BUSY:
+            if ticks_diff(ticks_ms(), start) > timeout_ms:
+                raise TimeoutError(f"E-Ink BUSY timeout after {timeout_ms}ms")
             sleep_ms(100)
 
     def reset(self):

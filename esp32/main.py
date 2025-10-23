@@ -41,6 +41,9 @@ ULTRASONIC_ECHO = 10
 RELAY_PINS = [5, 6, 7, 8]
 
 # E-Ink Display (SPI) - Waveshare 1.54" 3-Color (8 Pins)
+# ⚠️ ENABLE/DISABLE E-INK DISPLAY:
+ENABLE_EINK_DISPLAY = True  # Auf False setzen wenn Display NICHT angeschlossen ist!
+
 # Standard SPI Pins (Hardware SPI)
 EINK_MOSI = 38   # DIN (Data In)
 EINK_CLK = 48    # CLK (Clock)
@@ -563,7 +566,7 @@ class WateringSystem:
         frame_black = bytearray(5000)
         frame_red = bytearray(5000)
         
-        # Fill with white (0xFF = white)
+        # Fill with white (0xFF = white in epaper1in54b)
         for i in range(5000):
             frame_black[i] = 0xFF
             frame_red[i] = 0x00
@@ -574,10 +577,10 @@ class WateringSystem:
         radius = 40
         
         if status == "ok":
-            # Draw black filled circle for OK status
+            # Draw black filled circle for OK status (colored=1 means set pixel)
             self.eink.draw_filled_circle(frame_black, center_x, center_y, radius, 1)
         elif status == "warning":
-            # Draw red filled circle for warning
+            # Draw red filled circle for warning (colored=1 means set pixel)
             self.eink.draw_filled_circle(frame_red, center_x, center_y, radius, 1)
         else:  # error
             # Draw red filled circle for error
@@ -788,43 +791,48 @@ def main():
     # Initialize Firebase client
     firebase = FirebaseClient(FIREBASE_URL)
     
-    # Initialize E-Ink Display (optional - comment out if not connected)
+    # Initialize E-Ink Display (optional)
     eink = None  # Default: no display
-    print("\n→ Attempting E-Ink display initialization...")
     
-    try:
-        print("[DEBUG] Creating SPI bus for E-Ink...")
-        # Create SPI bus (using VSPI pins on ESP32-S3)
-        spi = SPI(2, baudrate=4000000, polarity=0, phase=0,
-                  sck=Pin(EINK_CLK), mosi=Pin(EINK_MOSI))
-        
-        print("[DEBUG] Creating Pin objects for E-Ink...")
-        cs_pin = Pin(EINK_CS)
-        dc_pin = Pin(EINK_DC)
-        rst_pin = Pin(EINK_RST)
-        busy_pin = Pin(EINK_BUSY)
-        
-        print("[DEBUG] Creating EPD instance...")
-        eink = EPD(spi, cs_pin, dc_pin, rst_pin, busy_pin)
-        
-        print("[DEBUG] Initializing E-Ink display...")
-        eink.init()
-        
-        print("[DEBUG] Clearing E-Ink display...")
-        # Create empty frame buffers (200x200 = 5000 bytes)
-        frame_black = bytearray(5000)
-        frame_red = bytearray(5000)
-        # Fill with white (0xFF = white)
-        for i in range(5000):
-            frame_black[i] = 0xFF
-            frame_red[i] = 0x00
-        eink.display_frame(frame_black, frame_red)
-        
-        print("✓ E-Ink display ready")
-    except Exception as e:
-        print(f"⚠ E-Ink display initialization failed: {e}")
-        print("  Continuing without display...")
-        eink = None
+    if ENABLE_EINK_DISPLAY:
+        print("\n→ Attempting E-Ink display initialization...")
+        try:
+            print(f"[DEBUG] Using PINs: MOSI={EINK_MOSI}, CLK={EINK_CLK}, CS={EINK_CS}, DC={EINK_DC}, RST={EINK_RST}, BUSY={EINK_BUSY}")
+            
+            print("[DEBUG] Creating SPI bus...")
+            # Create SPI bus with your PINs
+            spi = SPI(2, baudrate=4000000, polarity=0, phase=0,
+                      sck=Pin(EINK_CLK), mosi=Pin(EINK_MOSI))
+            
+            print("[DEBUG] Creating Pin objects...")
+            cs_pin = Pin(EINK_CS)
+            dc_pin = Pin(EINK_DC)
+            rst_pin = Pin(EINK_RST)
+            busy_pin = Pin(EINK_BUSY)
+            
+            print("[DEBUG] Creating EPD instance...")
+            eink = EPD(spi, cs_pin, dc_pin, rst_pin, busy_pin)
+            
+            print("[DEBUG] Initializing E-Ink display (this may take 10 seconds)...")
+            eink.init()
+            
+            print("[DEBUG] Clearing E-Ink display...")
+            # Create empty frame buffers (200x200 = 5000 bytes)
+            frame_black = bytearray(5000)
+            frame_red = bytearray(5000)
+            # Fill with white (0xFF = white)
+            for i in range(5000):
+                frame_black[i] = 0xFF
+                frame_red[i] = 0x00
+            eink.display_frame(frame_black, frame_red)
+            
+            print("✓ E-Ink display ready")
+        except Exception as e:
+            print(f"⚠ E-Ink display initialization failed: {e}")
+            print("  Continuing without display...")
+            eink = None
+    else:
+        print("\n⚠ E-Ink display disabled (ENABLE_EINK_DISPLAY = False)")
     
     # Create and run watering system
     system = WateringSystem(hardware, firebase, eink)
