@@ -281,6 +281,7 @@ class WateringSystem:
         self.last_test_time = 0
         self.test_interval = 7 * 24 * 60 * 60  # 7 days in seconds
         self.last_display_status = None  # Track display status to avoid unnecessary updates
+        self.timezone_offset_hours = 1  # Default: MEZ (UTC+1), wird nach NTP-Sync aktualisiert
     
     def connect_wifi(self):
         """Connect to WiFi"""
@@ -404,21 +405,30 @@ class WateringSystem:
                 # DEBUG: Show raw system time after NTP
                 raw_time = time.time()
                 print(f"[DEBUG] Raw time.time() after ntptime: {raw_time}")
-                print(f"[DEBUG] Raw localtime: {time.localtime(raw_time)}")
+                utc_time = time.localtime(raw_time)
+                print(f"[DEBUG] UTC time: {utc_time}")
                 
-                # Automatische Timezone-Erkennung
-                offset_hours = self.get_timezone_offset()
-                offset_seconds = offset_hours * 3600
+                # Automatische Timezone-Erkennung BASIEREND AUF UTC-ZEIT
+                year, month, day, hour = utc_time[0], utc_time[1], utc_time[2], utc_time[3]
+                
+                # Prüfe Sommerzeit basierend auf UTC-Zeit
+                if self.is_dst(year, month, day, hour):
+                    self.timezone_offset_hours = 2  # MESZ (Sommerzeit)
+                else:
+                    self.timezone_offset_hours = 1  # MEZ (Winterzeit)
+                
+                offset_seconds = self.timezone_offset_hours * 3600
                 current_timestamp = time.time() + offset_seconds
                 
-                # Convert to readable format
-                year, month, day, hour, minute, second, _, _ = time.localtime(current_timestamp)
+                # Convert to readable format (LOKALE ZEIT)
+                local_time = time.localtime(current_timestamp)
+                year, month, day, hour, minute, second = local_time[0], local_time[1], local_time[2], local_time[3], local_time[4], local_time[5]
                 
-                timezone_name = "MESZ (Sommerzeit)" if offset_hours == 2 else "MEZ (Winterzeit)"
+                timezone_name = "MESZ (Sommerzeit)" if self.timezone_offset_hours == 2 else "MEZ (Winterzeit)"
                 print(f"\n✓ Time synchronized successfully!")
                 print(f"  Server: {server}")
                 print(f"  Date/Time: {day:02d}.{month:02d}.{year} {hour:02d}:{minute:02d}:{second:02d}")
-                print(f"  Timezone: {timezone_name} (UTC+{offset_hours})")
+                print(f"  Timezone: {timezone_name} (UTC+{self.timezone_offset_hours})")
                 print(f"  Unix Timestamp: {int(current_timestamp * 1000)} ms")
                 print("="*50 + "\n")
                 return  # Success - exit
@@ -438,14 +448,12 @@ class WateringSystem:
     
     def get_timestamp(self):
         """Get current timestamp in milliseconds (with timezone offset) - for Firebase"""
-        offset_hours = self.get_timezone_offset()
-        offset_seconds = offset_hours * 3600
+        offset_seconds = self.timezone_offset_hours * 3600
         return int((time.time() + offset_seconds) * 1000)
     
     def get_time(self):
         """Get current time in seconds (with timezone offset) - for calculations"""
-        offset_hours = self.get_timezone_offset()
-        offset_seconds = offset_hours * 3600
+        offset_seconds = self.timezone_offset_hours * 3600
         return time.time() + offset_seconds
     
     def load_settings(self):
@@ -579,14 +587,21 @@ class WateringSystem:
                         status = "warning"
                         break
         
-        # Only update display if status changed (saves power)
+        # Update display if status changed OR if this is first update (saves power)
         if status != self.last_display_status:
             try:
-                print(f"→ Updating E-Ink display: {status}")
+                if self.last_display_status is None:
+                    print(f"→ Initial E-Ink display update: {status}")
+                else:
+                    print(f"→ E-Ink display status changed: {self.last_display_status} → {status}")
+                
                 self.draw_status_icon_on_eink(status)
                 self.last_display_status = status
             except Exception as e:
-                print(f"✗ E-Ink display update failed: {e}")
+                error_msg = f"E-Ink update failed: {str(e)}"
+                print(f"✗ {error_msg}")
+                # Log error to Firebase
+                self.fb.log_error("eink_display", "Display Update", error_msg, "warning")
     
     def draw_status_icon_on_eink(self, status):
         """Draw status icon on E-Ink display (200x200 pixels)"""
