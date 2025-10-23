@@ -6,10 +6,10 @@ import ujson as json
 import urequests as requests
 import network
 import machine
-from machine import Pin, ADC, I2C, RTC
+from machine import Pin, ADC, I2C, RTC, SPI
 import dht
 import ntptime
-from waveshare_epd import WaveshareEPD
+from epaper1in54b import EPD
 
 # =============================================================================
 # CONFIGURATION - UPDATE THESE VALUES
@@ -552,10 +552,39 @@ class WateringSystem:
         if status != self.last_display_status:
             try:
                 print(f"→ Updating E-Ink display: {status}")
-                self.eink.draw_status_icon(status)
+                self.draw_status_icon_on_eink(status)
                 self.last_display_status = status
             except Exception as e:
                 print(f"✗ E-Ink display update failed: {e}")
+    
+    def draw_status_icon_on_eink(self, status):
+        """Draw status icon on E-Ink display (200x200 pixels)"""
+        # Create frame buffers (200x200 = 5000 bytes)
+        frame_black = bytearray(5000)
+        frame_red = bytearray(5000)
+        
+        # Fill with white (0xFF = white)
+        for i in range(5000):
+            frame_black[i] = 0xFF
+            frame_red[i] = 0x00
+        
+        # Draw status icon in center (100, 100)
+        center_x = 100
+        center_y = 100
+        radius = 40
+        
+        if status == "ok":
+            # Draw black filled circle for OK status
+            self.eink.draw_filled_circle(frame_black, center_x, center_y, radius, 1)
+        elif status == "warning":
+            # Draw red filled circle for warning
+            self.eink.draw_filled_circle(frame_red, center_x, center_y, radius, 1)
+        else:  # error
+            # Draw red filled circle for error
+            self.eink.draw_filled_circle(frame_red, center_x, center_y, radius, 1)
+        
+        # Display the frame
+        self.eink.display_frame(frame_black, frame_red)
     
     def execute_system_test(self):
         """Execute the actual system test (called by both weekly and manual triggers)"""
@@ -762,24 +791,34 @@ def main():
     # Initialize E-Ink Display (optional - comment out if not connected)
     eink = None  # Default: no display
     print("\n→ Attempting E-Ink display initialization...")
-    print("  (This will timeout after 5 seconds if display not connected)")
     
     try:
-        print("[DEBUG] Creating WaveshareEPD instance...")
-        eink = WaveshareEPD(
-            spi_id=2,  # SPI2
-            clk_pin=EINK_CLK,
-            mosi_pin=EINK_MOSI,
-            cs_pin=EINK_CS,
-            dc_pin=EINK_DC,
-            rst_pin=EINK_RST,
-            busy_pin=EINK_BUSY
-        )
-        print("[DEBUG] Calling eink.init()...")
+        print("[DEBUG] Creating SPI bus for E-Ink...")
+        # Create SPI bus (using VSPI pins on ESP32-S3)
+        spi = SPI(2, baudrate=4000000, polarity=0, phase=0,
+                  sck=Pin(EINK_CLK), mosi=Pin(EINK_MOSI))
+        
+        print("[DEBUG] Creating Pin objects for E-Ink...")
+        cs_pin = Pin(EINK_CS)
+        dc_pin = Pin(EINK_DC)
+        rst_pin = Pin(EINK_RST)
+        busy_pin = Pin(EINK_BUSY)
+        
+        print("[DEBUG] Creating EPD instance...")
+        eink = EPD(spi, cs_pin, dc_pin, rst_pin, busy_pin)
+        
+        print("[DEBUG] Initializing E-Ink display...")
         eink.init()
         
-        print("[DEBUG] Calling eink.clear()...")
-        eink.clear()
+        print("[DEBUG] Clearing E-Ink display...")
+        # Create empty frame buffers (200x200 = 5000 bytes)
+        frame_black = bytearray(5000)
+        frame_red = bytearray(5000)
+        # Fill with white (0xFF = white)
+        for i in range(5000):
+            frame_black[i] = 0xFF
+            frame_red[i] = 0x00
+        eink.display_frame(frame_black, frame_red)
         
         print("✓ E-Ink display ready")
     except Exception as e:
