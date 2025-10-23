@@ -51,7 +51,7 @@ EINK_CLK = 48    # CLK (Clock)
 EINK_CS = 21     # CS (Chip Select)
 EINK_DC = 18     # DC (Data/Command)
 EINK_RST = 14   # RST (Reset)
-EINK_BUSY = 46  # BUSY (Busy Signal)
+EINK_BUSY = 1  # BUSY (Busy Signal)
 # VCC = 3.3V, GND = Ground (nicht konfigurierbar)
 
 # Water Tank Configuration (in cm)
