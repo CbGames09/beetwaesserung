@@ -59,7 +59,6 @@ TANK_FULL_DISTANCE = 5  # Distance from sensor to full tank (cm)
 # System Configuration
 MEASUREMENT_INTERVAL = 300  # Default: 5 minutes (will be overridden from Firebase)
 WATERING_DURATION = 5  # Pump 4 runs for 10 seconds daily when only 3 plants active
-PUMP_4_DAILY_RUN = 5  # Pump 4 runs for 10 seconds daily when only 3 plants active
 
 # NTP Configuration
 NTP_HOST = "pool.ntp.org"  # NTP server
@@ -761,7 +760,12 @@ def main():
     firebase = FirebaseClient(FIREBASE_URL)
     
     # Initialize E-Ink Display (optional - comment out if not connected)
+    eink = None  # Default: no display
+    print("\n→ Attempting E-Ink display initialization...")
+    print("  (This will timeout after 5 seconds if display not connected)")
+    
     try:
+        print("[DEBUG] Creating WaveshareEPD instance...")
         eink = WaveshareEPD(
             spi_id=2,  # SPI2
             clk_pin=EINK_CLK,
@@ -771,11 +775,16 @@ def main():
             rst_pin=EINK_RST,
             busy_pin=EINK_BUSY
         )
+        print("[DEBUG] Calling eink.init()...")
         eink.init()
+        
+        print("[DEBUG] Calling eink.clear()...")
         eink.clear()
+        
         print("✓ E-Ink display ready")
     except Exception as e:
-        print(f"⚠ E-Ink display not available: {e}")
+        print(f"⚠ E-Ink display initialization failed: {e}")
+        print("  Continuing without display...")
         eink = None
     
     # Create and run watering system

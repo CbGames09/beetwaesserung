@@ -80,9 +80,13 @@ class WaveshareEPD:
         self.spi.write(bytearray([data]))
         self.cs.value(1)
     
-    def _wait_until_idle(self):
-        """Wait until display is idle"""
+    def _wait_until_idle(self, timeout_ms=5000):
+        """Wait until display is idle with timeout"""
+        start = time.ticks_ms()
         while self.busy.value() == 1:
+            if time.ticks_diff(time.ticks_ms(), start) > timeout_ms:
+                print(f"⚠ E-Ink BUSY timeout after {timeout_ms}ms")
+                raise TimeoutError("E-Ink display BUSY timeout")
             time.sleep_ms(10)
     
     def reset(self):
@@ -96,16 +100,20 @@ class WaveshareEPD:
     
     def init(self):
         """Initialize display settings"""
+        print("[DEBUG] E-Ink: Starting reset...")
         self.reset()
         
+        print("[DEBUG] E-Ink: Sending BOOSTER_SOFT_START...")
         self._send_command(BOOSTER_SOFT_START)
         self._send_data(0x17)
         self._send_data(0x17)
         self._send_data(0x17)
         
+        print("[DEBUG] E-Ink: Sending POWER_ON and waiting for idle...")
         self._send_command(POWER_ON)
-        self._wait_until_idle()
+        self._wait_until_idle()  # THIS CAN HANG IF DISPLAY NOT CONNECTED!
         
+        print("[DEBUG] E-Ink: Configuring panel settings...")
         self._send_command(PANEL_SETTING)
         self._send_data(0x8F)
         
