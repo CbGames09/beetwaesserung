@@ -281,7 +281,8 @@ class WateringSystem:
         self.last_test_time = 0
         self.test_interval = 7 * 24 * 60 * 60  # 7 days in seconds
         self.last_display_status = None  # Track display status to avoid unnecessary updates
-        self.timezone_offset_hours = 1  # Default: MEZ (UTC+1), wird nach NTP-Sync aktualisiert
+        self.ntp_sync_timestamp = 0  # Timestamp when NTP was synced
+        self.ntp_sync_localtime = 0  # Local time.time() when NTP was synced
     
     def connect_wifi(self):
         """Connect to WiFi"""
@@ -402,34 +403,36 @@ class WateringSystem:
                 # Get NTP time
                 ntptime.settime()
                 
-                # DEBUG: Show raw system time after NTP
-                raw_time = time.time()
-                print(f"[DEBUG] Raw time.time() after ntptime: {raw_time}")
-                utc_time = time.localtime(raw_time)
-                print(f"[DEBUG] UTC time: {utc_time}")
+                # Get the EXACT time from NTP and store it
+                self.ntp_sync_localtime = time.time()  # Lokale ESP32-Zeit JETZT
                 
-                # Automatische Timezone-Erkennung BASIEREND AUF UTC-ZEIT
+                # Berechne UTC-Zeit vom NTP-Server
+                utc_time = time.localtime(self.ntp_sync_localtime)
                 year, month, day, hour = utc_time[0], utc_time[1], utc_time[2], utc_time[3]
                 
-                # Prüfe Sommerzeit basierend auf UTC-Zeit
+                # Automatische Timezone-Erkennung
                 if self.is_dst(year, month, day, hour):
-                    self.timezone_offset_hours = 2  # MESZ (Sommerzeit)
+                    offset_hours = 2  # MESZ (Sommerzeit)
+                    timezone_name = "MESZ (Sommerzeit)"
                 else:
-                    self.timezone_offset_hours = 1  # MEZ (Winterzeit)
+                    offset_hours = 1  # MEZ (Winterzeit)
+                    timezone_name = "MEZ (Winterzeit)"
                 
-                offset_seconds = self.timezone_offset_hours * 3600
-                current_timestamp = time.time() + offset_seconds
+                # Speichere den EXAKTEN Timestamp mit Timezone-Offset
+                offset_seconds = offset_hours * 3600
+                self.ntp_sync_timestamp = int((self.ntp_sync_localtime + offset_seconds) * 1000)  # Millisekunden
                 
-                # Convert to readable format (LOKALE ZEIT)
-                local_time = time.localtime(current_timestamp)
+                # Für Anzeige: Lokale Zeit
+                local_time = time.localtime(self.ntp_sync_localtime + offset_seconds)
                 year, month, day, hour, minute, second = local_time[0], local_time[1], local_time[2], local_time[3], local_time[4], local_time[5]
                 
-                timezone_name = "MESZ (Sommerzeit)" if self.timezone_offset_hours == 2 else "MEZ (Winterzeit)"
                 print(f"\n✓ Time synchronized successfully!")
                 print(f"  Server: {server}")
                 print(f"  Date/Time: {day:02d}.{month:02d}.{year} {hour:02d}:{minute:02d}:{second:02d}")
-                print(f"  Timezone: {timezone_name} (UTC+{self.timezone_offset_hours})")
-                print(f"  Unix Timestamp: {int(current_timestamp * 1000)} ms")
+                print(f"  Timezone: {timezone_name} (UTC+{offset_hours})")
+                print(f"  Unix Timestamp: {self.ntp_sync_timestamp} ms")
+                print(f"[DEBUG] Saved ntp_sync_timestamp: {self.ntp_sync_timestamp}")
+                print(f"[DEBUG] Saved ntp_sync_localtime: {self.ntp_sync_localtime}")
                 print("="*50 + "\n")
                 return  # Success - exit
                 
@@ -447,14 +450,26 @@ class WateringSystem:
         self.fb.log_error("ntp", "Time Synchronization", error_msg, "warning")
     
     def get_timestamp(self):
-        """Get current timestamp in milliseconds (with timezone offset) - for Firebase"""
-        offset_seconds = self.timezone_offset_hours * 3600
-        return int((time.time() + offset_seconds) * 1000)
+        """Get current timestamp in milliseconds - based on NTP sync"""
+        if self.ntp_sync_timestamp == 0:
+            # NTP noch nicht synchronisiert - verwende Fallback
+            return int(time.time() * 1000)
+        
+        # Berechne Zeit seit NTP-Sync
+        elapsed_seconds = time.time() - self.ntp_sync_localtime
+        # Timestamp = NTP-Sync-Zeit + vergangene Zeit
+        return int(self.ntp_sync_timestamp + (elapsed_seconds * 1000))
     
     def get_time(self):
-        """Get current time in seconds (with timezone offset) - for calculations"""
-        offset_seconds = self.timezone_offset_hours * 3600
-        return time.time() + offset_seconds
+        """Get current time in seconds - based on NTP sync"""
+        if self.ntp_sync_timestamp == 0:
+            # NTP noch nicht synchronisiert - verwende Fallback
+            return time.time()
+        
+        # Berechne Zeit seit NTP-Sync
+        elapsed_seconds = time.time() - self.ntp_sync_localtime
+        # Zeit = NTP-Sync-Zeit + vergangene Zeit (in Sekunden)
+        return (self.ntp_sync_timestamp / 1000) + elapsed_seconds
     
     def load_settings(self):
         """Load settings from Firebase"""
@@ -497,14 +512,24 @@ class WateringSystem:
             distance_cm = 0
             self.fb.log_error("sensor", "Ultrasonic", f"{str(e)}", "error")
         
-        # Calculate water level percentage
-        if distance_cm <= TANK_FULL_DISTANCE:
-            water_level = 100
-        elif distance_cm >= TANK_HEIGHT:
-            water_level = 0
+        # Calculate water level percentage based on tank settings
+        if self.settings and 'waterTank' in self.settings:
+            tank_height = self.settings['waterTank']['height']  # in cm
+            # Wasserstand-Höhe = Tank-Höhe - Abstand vom Sensor
+            water_height = tank_height - distance_cm
+            # Prozentsatz = (Wasserhöhe / Tank-Höhe) * 100
+            water_level = (water_height / tank_height) * 100
+            water_level = max(0, min(100, water_level))  # Clamp zwischen 0-100%
+            print(f"[DEBUG] Water calc: tank_height={tank_height}cm, distance={distance_cm}cm, water_height={water_height}cm, level={water_level:.1f}%")
         else:
-            water_level = 100 - ((distance_cm - TANK_FULL_DISTANCE) * 100 / (TANK_HEIGHT - TANK_FULL_DISTANCE))
-        water_level = max(0, min(100, water_level))
+            # Fallback if settings not loaded yet
+            if distance_cm <= TANK_FULL_DISTANCE:
+                water_level = 100
+            elif distance_cm >= TANK_HEIGHT:
+                water_level = 0
+            else:
+                water_level = 100 - ((distance_cm - TANK_FULL_DISTANCE) * 100 / (TANK_HEIGHT - TANK_FULL_DISTANCE))
+            water_level = max(0, min(100, water_level))
         
         return {
             "timestamp": self.get_timestamp(),  # Milliseconds with timezone
@@ -605,32 +630,43 @@ class WateringSystem:
     
     def draw_status_icon_on_eink(self, status):
         """Draw status icon on E-Ink display (200x200 pixels)"""
+        print(f"[EINK DEBUG] Starting draw for status: {status}")
+        
         # Create frame buffers (200x200 = 5000 bytes)
         frame_black = bytearray(5000)
         frame_red = bytearray(5000)
         
-        # Fill with white (0xFF = white in epaper1in54b)
+        # Fill with white (0xFF = white, 0x00 = black/red depending on buffer)
         for i in range(5000):
-            frame_black[i] = 0xFF
-            frame_red[i] = 0x00
+            frame_black[i] = 0xFF  # Start with all white
+            frame_red[i] = 0x00    # No red initially
+        
+        print(f"[EINK DEBUG] Buffers created and filled")
         
         # Draw status icon in center (100, 100)
         center_x = 100
         center_y = 100
         radius = 40
         
+        print(f"[EINK DEBUG] Drawing circle at ({center_x}, {center_y}), radius={radius}")
+        
         if status == "ok":
-            # Draw black filled circle for OK status (colored=1 means set pixel)
-            self.eink.draw_filled_circle(frame_black, center_x, center_y, radius, 1)
-        elif status == "warning":
-            # Draw red filled circle for warning (colored=1 means set pixel)
+            # Draw black filled circle for OK status
+            # colored=0 means black (inverted logic in epaper1in54b)
+            print(f"[EINK DEBUG] Drawing BLACK circle (OK status)")
+            self.eink.draw_filled_circle(frame_black, center_x, center_y, radius, 0)
+        else:  # warning or error
+            # Draw red filled circle for warning/error
+            # colored=1 means red (set pixel in red buffer)
+            print(f"[EINK DEBUG] Drawing RED circle (Warning/Error status)")
             self.eink.draw_filled_circle(frame_red, center_x, center_y, radius, 1)
-        else:  # error
-            # Draw red filled circle for error
-            self.eink.draw_filled_circle(frame_red, center_x, center_y, radius, 1)
+        
+        print(f"[EINK DEBUG] Circle drawn, sending to display...")
         
         # Display the frame
         self.eink.display_frame(frame_black, frame_red)
+        
+        print(f"[EINK DEBUG] Display update complete!")
     
     def execute_system_test(self):
         """Execute the actual system test (called by both weekly and manual triggers)"""
