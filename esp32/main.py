@@ -9,6 +9,7 @@ import machine
 from machine import Pin, ADC, I2C, RTC
 import dht
 import ntptime
+from waveshare_epd import WaveshareEPD
 
 # =============================================================================
 # CONFIGURATION - UPDATE THESE VALUES
@@ -39,11 +40,16 @@ ULTRASONIC_ECHO = 10
 # Relay Pins (for pumps) - Using safe GPIO pins
 RELAY_PINS = [11, 12, 13, 14]
 
-# E-Ink Display (SPI) - Using safe GPIO pins
-EINK_CS = 38
-EINK_DC = 39
-EINK_RST = 40
-EINK_BUSY = 41
+# E-Ink Display (SPI) - Waveshare 1.54" 3-Color (8 Pins)
+# Standard SPI Pins (Hardware SPI)
+EINK_MOSI = 35   # DIN (Data In)
+EINK_CLK = 36    # CLK (Clock)
+# Control Pins (können frei gewählt werden)
+EINK_CS = 37     # CS (Chip Select)
+EINK_DC = 38     # DC (Data/Command)
+EINK_RST = 39    # RST (Reset)
+EINK_BUSY = 40   # BUSY (Busy Signal)
+# VCC = 3.3V, GND = Ground (nicht konfigurierbar)
 
 # Water Tank Configuration (in cm)
 TANK_DIAMETER = 20
@@ -134,13 +140,18 @@ class HardwareController:
         """Activate pump for specified duration"""
         try:
             print(f"→ Activating pump {pump_id + 1} for {duration}s")
+            print(f"[DEBUG] Setting relay[{pump_id}] to LOW (activate)")
             self.relays[pump_id].value(0)  # Active LOW
+            print(f"[DEBUG] Relay activated, sleeping for {duration}s...")
             time.sleep(duration)
+            print(f"[DEBUG] Setting relay[{pump_id}] to HIGH (deactivate)")
             self.relays[pump_id].value(1)  # OFF
             self.last_watered[pump_id] = time.time()
             print(f"✓ Pump {pump_id + 1} deactivated")
         except Exception as e:
             print(f"✗ Error activating pump {pump_id}: {e}")
+            print(f"[DEBUG] Exception type: {type(e).__name__}")
+            print(f"[DEBUG] Ensuring relay {pump_id} is OFF")
             self.relays[pump_id].value(1)  # Ensure OFF on error
 
 # =============================================================================
@@ -260,12 +271,14 @@ class FirebaseClient:
 # =============================================================================
 
 class WateringSystem:
-    def __init__(self, hardware, firebase):
+    def __init__(self, hardware, firebase, eink_display=None):
         self.hw = hardware
         self.fb = firebase
+        self.eink = eink_display
         self.settings = None
         self.last_test_time = 0
         self.test_interval = 7 * 24 * 60 * 60  # 7 days in seconds
+        self.last_display_status = None  # Track display status to avoid unnecessary updates
     
     def connect_wifi(self):
         """Connect to WiFi"""
@@ -361,8 +374,18 @@ class WateringSystem:
     def sync_time(self):
         """Synchronize time with NTP server"""
         try:
+            print("\n" + "="*50)
+            print("NTP TIME SYNCHRONIZATION")
+            print("="*50)
             print("→ Synchronizing time with NTP server...")
+            
+            # Get NTP time (returns seconds since 1900, NOT 1970!)
             ntptime.settime()
+            
+            # DEBUG: Show raw system time after NTP
+            raw_time = time.time()
+            print(f"[DEBUG] Raw time.time() after ntptime: {raw_time}")
+            print(f"[DEBUG] Raw localtime: {time.localtime(raw_time)}")
             
             # Automatische Timezone-Erkennung
             offset_hours = self.get_timezone_offset()
@@ -373,8 +396,11 @@ class WateringSystem:
             year, month, day, hour, minute, second, _, _ = time.localtime(current_timestamp)
             
             timezone_name = "MESZ (Sommerzeit)" if offset_hours == 2 else "MEZ (Winterzeit)"
-            print(f"✓ Time synchronized: {year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}:{second:02d} {timezone_name}")
+            print(f"\n✓ Time synchronized successfully!")
+            print(f"  Date/Time: {day:02d}.{month:02d}.{year} {hour:02d}:{minute:02d}:{second:02d}")
+            print(f"  Timezone: {timezone_name} (UTC+{offset_hours})")
             print(f"  Unix Timestamp: {int(current_timestamp * 1000)} ms")
+            print("="*50 + "\n")
             
         except Exception as e:
             print(f"✗ Time sync failed: {e}")
@@ -467,12 +493,19 @@ class WateringSystem:
     def check_manual_watering(self):
         """Check for manual watering commands"""
         command = self.fb.get_manual_watering()
+        print(f"[DEBUG] Manual watering check - command: {command}")
+        
         if command and 'plantId' in command:
             plant_id = command['plantId'] - 1  # Convert to 0-indexed
             duration = command.get('duration', WATERING_DURATION)
-            print(f"! Manual watering command for plant {plant_id + 1}")
+            print(f"! Manual watering command for plant {plant_id + 1}, duration: {duration}s")
+            print(f"[DEBUG] Calling activate_pump({plant_id}, {duration})")
             self.hw.activate_pump(plant_id, duration)
+            print(f"[DEBUG] Pump activation complete, clearing command...")
             self.fb.clear_manual_watering()
+            print(f"[DEBUG] Manual watering command cleared")
+        elif command:
+            print(f"[DEBUG] Command exists but missing plantId: {command}")
     
     def check_manual_test_trigger(self):
         """Check if manual test was triggered from website"""
@@ -494,6 +527,36 @@ class WateringSystem:
                 print("→ Running daily pump 4 maintenance")
                 self.hw.activate_pump(3, PUMP_4_DAILY_RUN)
                 self.hw.last_pump4_run = current_time
+    
+    def update_display(self, sensor_data):
+        """Update E-Ink display with system status (only if status changed)"""
+        if not self.eink:
+            return  # Display not available
+        
+        # Determine status based on sensor data
+        status = "ok"
+        if sensor_data:
+            # Check water level
+            if sensor_data['waterLevel'] < 20:
+                status = "warning"
+            
+            # Check moisture levels
+            if self.settings:
+                for i in range(self.settings['numberOfPlants']):
+                    profile = self.settings['plantProfiles'][i]
+                    moisture = sensor_data['plantMoisture'][i]
+                    if moisture < profile['moistureMin']:
+                        status = "warning"
+                        break
+        
+        # Only update display if status changed (saves power)
+        if status != self.last_display_status:
+            try:
+                print(f"→ Updating E-Ink display: {status}")
+                self.eink.draw_status_icon(status)
+                self.last_display_status = status
+            except Exception as e:
+                print(f"✗ E-Ink display update failed: {e}")
     
     def execute_system_test(self):
         """Execute the actual system test (called by both weekly and manual triggers)"""
@@ -608,13 +671,6 @@ class WateringSystem:
         self.execute_system_test()
         self.last_test_time = current_time
     
-    def update_display_status(self, status):
-        """Update E-Ink display with system status icon"""
-        # TODO: Implement E-Ink display update
-        # This requires the Waveshare E-Ink library
-        # For now, just print status
-        print(f"Display status: {status}")
-    
     def run(self):
         """Main control loop"""
         print("\n" + "=" * 50)
@@ -682,8 +738,8 @@ class WateringSystem:
                 # Reload settings (in case they changed)
                 self.load_settings()
                 
-                # Update display
-                self.update_display_status(status['displayStatus'])
+                # Update E-Ink display
+                self.update_display(sensor_data)
                 
                 # Sleep until next measurement
                 print(f"→ Sleeping for {interval} seconds...")
@@ -704,8 +760,26 @@ def main():
     # Initialize Firebase client
     firebase = FirebaseClient(FIREBASE_URL)
     
+    # Initialize E-Ink Display (optional - comment out if not connected)
+    try:
+        eink = WaveshareEPD(
+            spi_id=2,  # SPI2
+            clk_pin=EINK_CLK,
+            mosi_pin=EINK_MOSI,
+            cs_pin=EINK_CS,
+            dc_pin=EINK_DC,
+            rst_pin=EINK_RST,
+            busy_pin=EINK_BUSY
+        )
+        eink.init()
+        eink.clear()
+        print("✓ E-Ink display ready")
+    except Exception as e:
+        print(f"⚠ E-Ink display not available: {e}")
+        eink = None
+    
     # Create and run watering system
-    system = WateringSystem(hardware, firebase)
+    system = WateringSystem(hardware, firebase, eink)
     system.run()
 
 if __name__ == "__main__":
