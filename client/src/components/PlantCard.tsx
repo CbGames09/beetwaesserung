@@ -96,7 +96,7 @@ export function PlantCard({
           <div className="flex justify-between items-center">
             <span className="text-sm text-muted-foreground">Feuchtigkeit</span>
             <span className="text-2xl font-mono font-semibold" data-testid={`text-moisture-${profile.id}`}>
-              {moisture}%
+              {moisture.toFixed(1)}%
             </span>
           </div>
           <Progress 
@@ -105,8 +105,8 @@ export function PlantCard({
             indicatorClassName={getProgressColor()}
           />
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>{moistureMin}%</span>
-            <span>{moistureMax}%</span>
+            <span>{moistureMin.toFixed(1)}%</span>
+            <span>{moistureMax.toFixed(1)}%</span>
           </div>
           {activeThresholds.isSeasonallyAdjusted && activeThresholds.season && (
             <div 

@@ -3,25 +3,29 @@ import { Beaker } from "lucide-react";
 import type { WaterTank } from "@shared/schema";
 
 interface WaterTankCardProps {
-  waterLevel: number;
+  waterLevelCm: number;
   tankConfig: WaterTank;
 }
 
-export function WaterTankCard({ waterLevel, tankConfig }: WaterTankCardProps) {
-  const calculateVolume = (level: number) => {
-    const radius = tankConfig.diameter / 2;
-    const height = (level / 100) * tankConfig.height;
-    const volumeCm3 = Math.PI * radius * radius * height;
-    const liters = volumeCm3 / 1000;
-    return liters.toFixed(1);
-  };
-
-  const maxVolume = calculateVolume(100);
-  const currentVolume = calculateVolume(waterLevel);
+export function WaterTankCard({ waterLevelCm, tankConfig }: WaterTankCardProps) {
+  // Berechnung nach Benutzer-Vorgabe:
+  // Aktuelle Wassermenge = (höhe - waterlevelcm) * (d/2)² * π
+  const radius = tankConfig.diameter / 2;
+  const waterHeight = tankConfig.height - waterLevelCm;
+  const currentVolumeCm3 = waterHeight * radius * radius * Math.PI;
+  const currentVolume = (currentVolumeCm3 / 1000).toFixed(1);
+  
+  // Gefäßgröße = höhe * (d/2)² * π
+  const maxVolumeCm3 = tankConfig.height * radius * radius * Math.PI;
+  const maxVolume = (maxVolumeCm3 / 1000).toFixed(1);
+  
+  // Prozent der verbleibenden Wassermenge
+  const waterLevelPercent = (currentVolumeCm3 / maxVolumeCm3) * 100;
+  const waterLevel = waterLevelPercent.toFixed(1);
 
   const getStatusColor = () => {
-    if (waterLevel < 20) return "bg-destructive";
-    if (waterLevel < 40) return "bg-chart-2";
+    if (waterLevelPercent < 20) return "bg-destructive";
+    if (waterLevelPercent < 40) return "bg-chart-2";
     return "bg-primary";
   };
 
@@ -31,7 +35,7 @@ export function WaterTankCard({ waterLevel, tankConfig }: WaterTankCardProps) {
         <div className="relative w-16 h-32 bg-muted/30 rounded-lg border-2 border-border overflow-hidden">
           <div
             className={`absolute bottom-0 left-0 right-0 ${getStatusColor()} transition-all duration-500`}
-            style={{ height: `${waterLevel}%` }}
+            style={{ height: `${waterLevelPercent}%` }}
           />
           <div className="absolute inset-0 flex items-center justify-center">
             <Beaker className="h-12 w-12 text-foreground/30" strokeWidth={1.5} />
@@ -50,7 +54,7 @@ export function WaterTankCard({ waterLevel, tankConfig }: WaterTankCardProps) {
           <div className="mt-2 text-sm text-muted-foreground">
             <span data-testid="text-water-volume">{currentVolume} L</span> von {maxVolume} L
           </div>
-          {waterLevel < 20 && (
+          {waterLevelPercent < 20 && (
             <div className="mt-2 text-sm text-destructive font-medium">
               Wasserstand kritisch!
             </div>
