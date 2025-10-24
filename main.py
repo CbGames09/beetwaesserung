@@ -16,11 +16,11 @@ from epaper1in54b import EPD
 # =============================================================================
 
 # WiFi Configuration
-WIFI_SSID = "YOUR_WIFI_SSID"
-WIFI_PASSWORD = "YOUR_WIFI_PASSWORD"
+WIFI_SSID = "FRITZ!Box 6660 Cable QE"
+WIFI_PASSWORD = "88032708905648603447"
 
 # Firebase Configuration
-FIREBASE_URL = "https://YOUR-PROJECT-default-rtdb.YOUR-REGION.firebasedatabase.app"
+FIREBASE_URL = "https://beetwaesserung-c20c2-default-rtdb.europe-west1.firebasedatabase.app"
 # Example: "https://pflanzenbewasserung-default-rtdb.europe-west1.firebasedatabase.app"
 
 # Pin Configuration (adjust based on your wiring)
@@ -139,21 +139,21 @@ class HardwareController:
         return distance
     
     def activate_pump(self, pump_id, duration=WATERING_DURATION):
-    """Activate pump for specified duration"""
-    try:
-        print(f"→ Activating pump {pump_id + 1} for {duration}s")
-        self.relays[pump_id].value(0)  # Active LOW
-        time.sleep(duration)
-        self.relays[pump_id].value(1)  # OFF
+        """Activate pump for specified duration"""
+        try:
+            print(f"→ Activating pump {pump_id + 1} for {duration}s")
+            self.relays[pump_id].value(0)  # Active LOW
+            time.sleep(duration)
+            self.relays[pump_id].value(1)  # OFF
 
-        # Store last watering time in correct UNIX UTC ms
-        unix_offset = 946684800  # seconds between 1970 and 2000
-        self.last_watered[pump_id] = self.system.get_timestamp()
+            # Store last watering time in correct UNIX UTC ms
+            unix_offset = 946684800  # seconds between 1970 and 2000
+            self.last_watered[pump_id] = self.system.get_timestamp()
 
-        print(f"✓ Pump {pump_id + 1} deactivated at {self.last_watered[pump_id]}")
-    except Exception as e:
-        print(f"✗ Error activating pump {pump_id}: {e}")
-        self.relays[pump_id].value(1)  # Ensure OFF on error
+            print(f"✓ Pump {pump_id + 1} deactivated at {self.last_watered[pump_id]}")
+        except Exception as e:
+            print(f"✗ Error activating pump {pump_id}: {e}")
+            self.relays[pump_id].value(1)  # Ensure OFF on error
 
 
 # =============================================================================
@@ -166,40 +166,40 @@ class FirebaseClient:
         self.error_count = 0  # Track errors to avoid spam
     
     def log_error(self, error_type, component, message, severity="error"):
-    """Log error to Firebase (uses system timestamp from WateringSystem)"""
-    try:
-        existing_errors = self.get("systemErrors") or {}
+        """Log error to Firebase (uses system timestamp from WateringSystem)"""
+        try:
+            existing_errors = self.get("systemErrors") or {}
 
-        self.error_count += 1
-        now_ms = self.system.get_timestamp()  # zentraler Zeitstempel (UTC ms)
-        error_key = f"error_{int(now_ms/1000)}_{self.error_count}"
+            self.error_count += 1
+            now_ms = self.system.get_timestamp()  # zentraler Zeitstempel (UTC ms)
+            error_key = f"error_{int(now_ms/1000)}_{self.error_count}"
 
-        error_data = {
-            "timestamp": now_ms,
-            "errorType": error_type,
-            "component": component,
-            "message": message,
-            "severity": severity,
-            "resolved": False
-        }
+            error_data = {
+                "timestamp": now_ms,
+                "errorType": error_type,
+                "component": component,
+                "message": message,
+                "severity": severity,
+                "resolved": False
+            }
 
-        existing_errors[error_key] = error_data
+            existing_errors[error_key] = error_data
 
-        # Keep only the 10 newest
-        if len(existing_errors) > 10:
-            sorted_errors = sorted(
-                existing_errors.items(),
-                key=lambda x: x[1].get("timestamp", 0),
-                reverse=True
-            )[:10]
-            existing_errors = dict(sorted_errors)
+            # Keep only the 10 newest
+            if len(existing_errors) > 10:
+                sorted_errors = sorted(
+                    existing_errors.items(),
+                    key=lambda x: x[1].get("timestamp", 0),
+                    reverse=True
+                )[:10]
+                existing_errors = dict(sorted_errors)
 
-        self.put("systemErrors", existing_errors)
+            self.put("systemErrors", existing_errors)
 
-    except Exception as e:
-        print(f"✗ Failed to log error to Firebase: {e}")
+        except Exception as e:
+            print(f"✗ Failed to log error to Firebase: {e}")
 
-    
+        
     def get(self, path):
         """GET request to Firebase"""
         try:
@@ -381,84 +381,84 @@ class WateringSystem:
             return 1  # MEZ (Winterzeit)
     
     def sync_time(self):
-    """Synchronize time with NTP server - stores UTC-based timestamps"""
-    print("\n" + "="*50)
-    print("NTP TIME SYNCHRONIZATION")
-    print("="*50)
-    
-    # Liste von NTP-Servern (Deutschland/Europa)
-    ntp_servers = [
-        "de.pool.ntp.org",     # Deutschland
-        "europe.pool.ntp.org", # Europa
-        "pool.ntp.org",        # Global
-        "time.google.com",     # Google (Fallback)
-    ]
-    
-    for server in ntp_servers:
-        try:
-            print(f"→ Trying NTP server: {server}")
-            
-            # Set server and longer timeout
-            ntptime.host = server
-            ntptime.timeout = 5  # 5 seconds timeout
-            
-            # Set system time from NTP (UTC)
-            ntptime.settime()
-            
-            # Save local ESP32 time right after sync (MicroPython = seconds since 2000-01-01)
-            self.ntp_sync_localtime = time.time()
-            
-            # Calculate UTC timestamp in UNIX epoch (1970-01-01)
-            unix_offset = 946684800  # seconds between 1970 and 2000
-            self.ntp_sync_timestamp = int((self.ntp_sync_localtime + unix_offset) * 1000)  # milliseconds (UTC)
-            
-            # Compute timezone info for display/logging only
-            utc_time = time.localtime(self.ntp_sync_localtime)
-            year, month, day, hour = utc_time[0], utc_time[1], utc_time[2], utc_time[3]
-            
-            if self.is_dst(year, month, day, hour):
-                offset_hours = 2
-                timezone_name = "MESZ (Sommerzeit)"
-            else:
-                offset_hours = 1
-                timezone_name = "MEZ (Winterzeit)"
-            
-            offset_seconds = offset_hours * 3600
-            local_time = time.localtime(self.ntp_sync_localtime + offset_seconds)
-            year, month, day, hour, minute, second = (
-                local_time[0], local_time[1], local_time[2],
-                local_time[3], local_time[4], local_time[5]
-            )
-            
-            print(f"\n✓ Time synchronized successfully!")
-            print(f"  Server: {server}")
-            print(f"  Local Date/Time: {day:02d}.{month:02d}.{year} {hour:02d}:{minute:02d}:{second:02d}")
-            print(f"  Timezone: {timezone_name} (UTC+{offset_hours})")
-            print(f"  Stored ntp_sync_timestamp (UTC, ms): {self.ntp_sync_timestamp}")
-            print(f"  Local reference (MicroPython): {self.ntp_sync_localtime}")
-            print("="*50 + "\n")
-            
-            return  # Success → exit loop
-            
-        except Exception as e:
-            print(f"✗ Failed with {server}: {e}")
-            # Try next server
-    
-    # If all servers fail
-    error_msg = f"All NTP servers failed (tried {len(ntp_servers)} servers)"
-    print(f"\n✗ {error_msg}")
-    print("  Using system time (may be incorrect)")
-    print("="*50 + "\n")
-    self.fb.log_error("ntp", "Time Synchronization", error_msg, "warning")
-    
+        """Synchronize time with NTP server - stores UTC-based timestamps"""
+        print("\n" + "="*50)
+        print("NTP TIME SYNCHRONIZATION")
+        print("="*50)
+        
+        # Liste von NTP-Servern (Deutschland/Europa)
+        ntp_servers = [
+            "de.pool.ntp.org",     # Deutschland
+            "europe.pool.ntp.org", # Europa
+            "pool.ntp.org",        # Global
+            "time.google.com",     # Google (Fallback)
+        ]
+        
+        for server in ntp_servers:
+            try:
+                print(f"→ Trying NTP server: {server}")
+                
+                # Set server and longer timeout
+                ntptime.host = server
+                ntptime.timeout = 5  # 5 seconds timeout
+                
+                # Set system time from NTP (UTC)
+                ntptime.settime()
+                
+                # Save local ESP32 time right after sync (MicroPython = seconds since 2000-01-01)
+                self.ntp_sync_localtime = time.time()
+                
+                # Calculate UTC timestamp in UNIX epoch (1970-01-01)
+                unix_offset = 946684800  # seconds between 1970 and 2000
+                self.ntp_sync_timestamp = int((self.ntp_sync_localtime + unix_offset) * 1000)  # milliseconds (UTC)
+                
+                # Compute timezone info for display/logging only
+                utc_time = time.localtime(self.ntp_sync_localtime)
+                year, month, day, hour = utc_time[0], utc_time[1], utc_time[2], utc_time[3]
+                
+                if self.is_dst(year, month, day, hour):
+                    offset_hours = 2
+                    timezone_name = "MESZ (Sommerzeit)"
+                else:
+                    offset_hours = 1
+                    timezone_name = "MEZ (Winterzeit)"
+                
+                offset_seconds = offset_hours * 3600
+                local_time = time.localtime(self.ntp_sync_localtime + offset_seconds)
+                year, month, day, hour, minute, second = (
+                    local_time[0], local_time[1], local_time[2],
+                    local_time[3], local_time[4], local_time[5]
+                )
+                
+                print(f"\n✓ Time synchronized successfully!")
+                print(f"  Server: {server}")
+                print(f"  Local Date/Time: {day:02d}.{month:02d}.{year} {hour:02d}:{minute:02d}:{second:02d}")
+                print(f"  Timezone: {timezone_name} (UTC+{offset_hours})")
+                print(f"  Stored ntp_sync_timestamp (UTC, ms): {self.ntp_sync_timestamp}")
+                print(f"  Local reference (MicroPython): {self.ntp_sync_localtime}")
+                print("="*50 + "\n")
+                
+                return  # Success → exit loop
+                
+            except Exception as e:
+                print(f"✗ Failed with {server}: {e}")
+                # Try next server
+        
+        # If all servers fail
+        error_msg = f"All NTP servers failed (tried {len(ntp_servers)} servers)"
+        print(f"\n✗ {error_msg}")
+        print("  Using system time (may be incorrect)")
+        print("="*50 + "\n")
+        self.fb.log_error("ntp", "Time Synchronization", error_msg, "warning")
+        
     
     def get_timestamp(self):
-    """Return current UNIX UTC timestamp in milliseconds"""
-    unix_offset = 946684800
-    if self.ntp_sync_timestamp == 0:
-        return self.system.get_timestamp()
-    elapsed_seconds = time.time() - self.ntp_sync_localtime
-    return int(self.ntp_sync_timestamp + (elapsed_seconds * 1000))
+        """Return current UNIX UTC timestamp in milliseconds"""
+        unix_offset = 946684800
+        if self.ntp_sync_timestamp == 0:
+            return self.system.get_timestamp()
+        elapsed_seconds = time.time() - self.ntp_sync_localtime
+        return int(self.ntp_sync_timestamp + (elapsed_seconds * 1000))
 
     def get_time(self):
         """Return current UNIX UTC time in seconds"""
@@ -943,3 +943,4 @@ def main():
     system.run()
 
 if __name__ == "__main__":
+    main()
