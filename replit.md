@@ -20,6 +20,9 @@ Erweiterte Features - Vollständig implementiert:
 - ✅ ESP32 WiFi Auto-Reconnect (non-blocking, 30s Intervall)
 - ✅ Firebase Retry-Logik (3 Versuche, exponential backoff)
 - ✅ Modulare ESP32-Architektur (5 separate Python-Module)
+- ✅ Detaillierte Selbsttest-Ergebnisse (Feuchtigkeit vorher/nachher, gemessene Werte)
+- ✅ App-Icon für Handy (PWA-ready)
+- ✅ Historical Charts: Auto-Zoom Y-Achse, Pflanzennamen, Dual-Axis Temp/Humidity
 
 Features in Entwicklung:
 - ⏳ CSV-Datenexport
@@ -230,12 +233,11 @@ Details siehe `design_guidelines.md`
 - Pumpe 4 läuft automatisch täglich für 10 Sekunden (verhindert Verstopfung)
 
 ### Wöchentlicher Selbsttest
-- Test aller 4 Bodenfeuchtesensoren
-- Test DHT11 Sensor
-- Test Ultraschallsensor
-- Test aller 4 Pumpen
-- Test Datenbankverbindung
-- Ergebnisse werden auf Website angezeigt
+- Test aller 4 Bodenfeuchtesensoren & Pumpen (3s Wasser → 1min warten → Feuchtigkeit muss steigen)
+- Test DHT11 Sensor (Temperatur & Luftfeuchtigkeit > 0)
+- Test Ultraschallsensor (Distanz ≤ Tankgröße + 5cm)
+- Ergebnisse mit Details auf Website angezeigt (Feuchtigkeit vorher/nachher, gemessene Werte)
+- Kein Datenbanktest mehr (nicht benötigt)
 
 ### E-Ink Display
 - Zeigt System-Status-Icon (OK, Warning, Error)

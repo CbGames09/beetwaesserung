@@ -47,6 +47,14 @@ Nach dem Erstellen der Datenbank müssen Sie die Sicherheitsregeln anpassen:
       ".read": true,
       ".write": true
     },
+    "manualTest": {
+      ".read": true,
+      ".write": true
+    },
+    "testConnection": {
+      ".read": true,
+      ".write": true
+    },
     "systemErrors": {
       ".read": true,
       ".write": true
@@ -91,6 +99,14 @@ Falls Sie maximale Sicherheit benötigen:
       ".write": "auth != null"
     },
     "manualWatering": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "manualTest": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "testConnection": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
