@@ -1,0 +1,14 @@
+# ESP32 .gitignore
+# Verhindert das Commit von Secrets
+
+# Configuration mit echten Credentials
+config.py
+
+# MicroPython compiled files
+*.pyc
+__pycache__/
+
+# Backup files
+*.bak
+*.old
+*_backup.py

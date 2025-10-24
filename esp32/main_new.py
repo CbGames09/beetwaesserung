@@ -16,13 +16,11 @@ from ntp_sync import NTPSync
 # =============================================================================
 
 # WiFi Configuration
-# ⚠️ WICHTIG: Ersetze diese Platzhalter mit deinen echten Zugangsdaten!
-WIFI_SSID = "YOUR_WIFI_SSID"  # z.B. "FRITZ!Box 6660"
-WIFI_PASSWORD = "YOUR_WIFI_PASSWORD"  # z.B. "mein_passwort"
+WIFI_SSID = ""
+WIFI_PASSWORD = ""
 
 # Firebase Configuration
-# ⚠️ WICHTIG: Ersetze mit deiner Firebase URL!
-FIREBASE_URL = "https://your-project-default-rtdb.europe-west1.firebasedatabase.app"  # z.B. "https://beetwaesserung-c20c2-default-rtdb.europe-west1.firebasedatabase.app"
+FIREBASE_URL = ""
 
 # Hardware Configuration
 CONFIG = {
@@ -361,7 +359,7 @@ def main():
     
     # Initialize Firebase Client
     print("→ Initializing Firebase Client...")
-    firebase = FirebaseClient(FIREBASE_URL, max_retries=3)
+    firebase = FirebaseClient(FIREBASE_URL, max_retries=3, timeout=10)
     print("✓ Firebase Client ready\n")
     
     # Initialize NTP Sync
