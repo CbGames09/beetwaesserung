@@ -171,6 +171,143 @@ class WateringSystem:
         except Exception as e:
             print(f"✗ Manual watering check error: {e}")
     
+    def check_manual_test(self):
+        """Check for manual test trigger"""
+        try:
+            trigger = self.fb.get_manual_test_trigger()
+            if trigger and trigger.get('trigger') == True:
+                print("! Manual test triggered from website")
+                self.fb.clear_manual_test_trigger()
+                self.run_system_test()
+        except Exception as e:
+            print(f"✗ Manual test check error: {e}")
+    
+    def run_system_test(self):
+        """Run comprehensive system test with new logic"""
+        print("\n" + "="*50)
+        print("SYSTEM SELF-TEST")
+        print("="*50 + "\n")
+        
+        test_result = {
+            "timestamp": self.get_timestamp(),
+            "moistureSensors": [],
+            "pumps": [],
+            "dht11": {"passed": False, "message": ""},
+            "ultrasonic": {"passed": False, "message": ""},
+            "database": {"passed": False, "message": ""},
+            "overall": False
+        }
+        
+        # Test each plant: Pump 3s, wait 1min, check moisture increase
+        print("→ Testing moisture sensors and pumps...")
+        for i in range(4):
+            try:
+                print(f"\n  Plant {i+1}:")
+                
+                # Read initial moisture
+                moisture_before = self.hw.read_moisture(i)
+                print(f"    Initial moisture: {moisture_before:.1f}%")
+                
+                # Run pump for 3 seconds
+                print(f"    Running pump for 3 seconds...")
+                self.hw.activate_pump(i, 3)
+                
+                # Wait 1 minute
+                print(f"    Waiting 60 seconds...")
+                time.sleep(60)
+                
+                # Read moisture after
+                moisture_after = self.hw.read_moisture(i)
+                print(f"    Moisture after: {moisture_after:.1f}%")
+                
+                # Check if moisture increased
+                moisture_increased = moisture_after > moisture_before
+                
+                sensor_result = {
+                    "passed": moisture_increased,
+                    "moistureBefore": round(moisture_before, 1),
+                    "moistureAfter": round(moisture_after, 1),
+                    "message": "OK" if moisture_increased else f"No increase ({moisture_before:.1f}% → {moisture_after:.1f}%)"
+                }
+                
+                test_result["moistureSensors"].append(sensor_result)
+                test_result["pumps"].append(sensor_result)
+                
+                print(f"    Result: {'✓ PASSED' if moisture_increased else '✗ FAILED'}")
+                
+            except Exception as e:
+                test_result["moistureSensors"].append({"passed": False, "message": str(e)})
+                test_result["pumps"].append({"passed": False, "message": str(e)})
+                print(f"    ✗ Error: {e}")
+        
+        # Test DHT11
+        print("\n→ Testing DHT11 sensor...")
+        try:
+            temp, humidity = self.hw.read_dht11()
+            passed = temp > 0 and humidity > 0
+            test_result["dht11"] = {
+                "passed": passed,
+                "temperature": round(temp, 1),
+                "humidity": round(humidity, 1),
+                "message": "OK" if passed else "Returns zeros"
+            }
+            print(f"  {'✓ PASSED' if passed else '✗ FAILED'}: {temp}°C, {humidity}%")
+        except Exception as e:
+            test_result["dht11"] = {"passed": False, "message": str(e)}
+            print(f"  ✗ FAILED: {e}")
+        
+        # Test Ultrasonic (must be <= tank_height + 5cm)
+        print("\n→ Testing ultrasonic sensor...")
+        try:
+            distance_cm = self.hw.read_ultrasonic()
+            max_distance = 100  # Default
+            
+            if self.settings and 'waterTank' in self.settings:
+                max_distance = self.settings['waterTank']['height'] + 5
+            
+            passed = distance_cm <= max_distance
+            test_result["ultrasonic"] = {
+                "passed": passed,
+                "distance": round(distance_cm, 1),
+                "maxAllowed": max_distance,
+                "message": "OK" if passed else f"Too high ({distance_cm:.1f}cm > {max_distance}cm)"
+            }
+            print(f"  {'✓ PASSED' if passed else '✗ FAILED'}: {distance_cm:.1f}cm (max: {max_distance}cm)")
+        except Exception as e:
+            test_result["ultrasonic"] = {"passed": False, "message": str(e)}
+            print(f"  ✗ FAILED: {e}")
+        
+        # Test Database
+        print("\n→ Testing database connection...")
+        try:
+            test_data = {"test": True, "timestamp": self.get_timestamp()}
+            success = self.fb.put("testConnection", test_data)
+            test_result["database"] = {
+                "passed": success,
+                "message": "OK" if success else "Upload failed"
+            }
+            print(f"  {'✓ PASSED' if success else '✗ FAILED'}")
+        except Exception as e:
+            test_result["database"] = {"passed": False, "message": str(e)}
+            print(f"  ✗ FAILED: {e}")
+        
+        # Overall result
+        all_passed = (
+            all(s.get("passed", False) for s in test_result["moistureSensors"]) and
+            test_result["dht11"]["passed"] and
+            test_result["ultrasonic"]["passed"] and
+            test_result["database"]["passed"]
+        )
+        test_result["overall"] = all_passed
+        
+        print(f"\n{'='*50}")
+        print(f"OVERALL: {'✓ ALL TESTS PASSED' if all_passed else '✗ SOME TESTS FAILED'}")
+        print(f"{'='*50}\n")
+        
+        # Upload results
+        self.fb.update_test_result(test_result)
+        return test_result
+    
     def save_historical_data(self, sensor_data):
         """Save historical data point every hour"""
         current_time = self.get_time()
@@ -317,6 +454,7 @@ class WateringSystem:
                 
                 # ===== Step 7: Check manual commands =====
                 self.check_manual_watering()
+                self.check_manual_test()
                 
                 # ===== Step 8: Auto-watering =====
                 self.check_and_water(sensor_data)
