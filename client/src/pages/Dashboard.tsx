@@ -230,6 +230,7 @@ export default function Dashboard() {
       <HistoryDialog
         open={showHistory}
         onOpenChange={setShowHistory}
+        settings={settings}
       />
 
       <DevPanel settings={settings} />
