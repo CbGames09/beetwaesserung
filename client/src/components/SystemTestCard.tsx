@@ -35,17 +35,14 @@ export function SystemTestCard({ testResult, nextTestTime }: SystemTestCardProps
 
   const getStatusIcon = () => {
     if (!testResult) return <ShieldAlert className="h-6 w-6 text-muted-foreground" />;
-    if (testResult.overallStatus === "passed")
+    if (testResult.overall)
       return <ShieldCheck className="h-6 w-6 text-primary" />;
-    if (testResult.overallStatus === "warning")
-      return <ShieldAlert className="h-6 w-6 text-chart-2" />;
     return <ShieldX className="h-6 w-6 text-destructive" />;
   };
 
   const getStatusLabel = () => {
     if (!testResult) return "Kein Test durchgeführt";
-    if (testResult.overallStatus === "passed") return "Alle Tests bestanden";
-    if (testResult.overallStatus === "warning") return "Warnung";
+    if (testResult.overall) return "Alle Tests bestanden";
     return "Test fehlgeschlagen";
   };
 
@@ -128,53 +125,67 @@ export function SystemTestCard({ testResult, nextTestTime }: SystemTestCardProps
           <CollapsibleContent className="mt-4 space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <h4 className="text-sm font-medium">Sensoren</h4>
-                {testResult.sensorTests.moistureSensors.map((passed, idx) => (
-                  <div key={idx} className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Feuchtigkeitssensor {idx + 1}</span>
-                    <Badge variant={passed ? "default" : "destructive"}>
-                      {passed ? "OK" : "Fehler"}
-                    </Badge>
+                <h4 className="text-sm font-medium">Sensoren & Pumpen</h4>
+                {testResult.moistureSensors.map((sensor, idx) => (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Pflanze {idx + 1}</span>
+                      <Badge variant={sensor.passed ? "default" : "destructive"} data-testid={`badge-sensor-${idx + 1}`}>
+                        {sensor.passed ? "OK" : "Fehler"}
+                      </Badge>
+                    </div>
+                    {sensor.moistureBefore !== undefined && sensor.moistureAfter !== undefined && (
+                      <p className="text-xs text-muted-foreground pl-2">
+                        {sensor.moistureBefore.toFixed(1)}% → {sensor.moistureAfter.toFixed(1)}%
+                      </p>
+                    )}
+                    {!sensor.passed && (
+                      <p className="text-xs text-destructive pl-2">{sensor.message}</p>
+                    )}
                   </div>
                 ))}
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">DHT11</span>
-                  <Badge variant={testResult.sensorTests.dht11 ? "default" : "destructive"}>
-                    {testResult.sensorTests.dht11 ? "OK" : "Fehler"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Ultraschall</span>
-                  <Badge variant={testResult.sensorTests.ultrasonic ? "default" : "destructive"}>
-                    {testResult.sensorTests.ultrasonic ? "OK" : "Fehler"}
-                  </Badge>
-                </div>
               </div>
 
               <div className="space-y-2">
-                <h4 className="text-sm font-medium">Pumpen</h4>
-                {testResult.pumpTests.map((passed, idx) => (
-                  <div key={idx} className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Pumpe {idx + 1}</span>
-                    <Badge variant={passed ? "default" : "destructive"}>
-                      {passed ? "OK" : "Fehler"}
+                <h4 className="text-sm font-medium">Umgebungssensoren</h4>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">DHT11</span>
+                    <Badge variant={testResult.dht11.passed ? "default" : "destructive"} data-testid="badge-dht11">
+                      {testResult.dht11.passed ? "OK" : "Fehler"}
                     </Badge>
                   </div>
-                ))}
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Verbindung</span>
-                  <Badge variant={testResult.connectivityTest ? "default" : "destructive"}>
-                    {testResult.connectivityTest ? "OK" : "Fehler"}
-                  </Badge>
+                  {testResult.dht11.temperature !== undefined && testResult.dht11.humidity !== undefined && (
+                    <p className="text-xs text-muted-foreground pl-2">
+                      {testResult.dht11.temperature.toFixed(1)}°C, {testResult.dht11.humidity.toFixed(1)}%
+                    </p>
+                  )}
+                  {!testResult.dht11.passed && (
+                    <p className="text-xs text-destructive pl-2">{testResult.dht11.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Ultraschall</span>
+                    <Badge variant={testResult.ultrasonic.passed ? "default" : "destructive"} data-testid="badge-ultrasonic">
+                      {testResult.ultrasonic.passed ? "OK" : "Fehler"}
+                    </Badge>
+                  </div>
+                  {testResult.ultrasonic.distance !== undefined && (
+                    <p className="text-xs text-muted-foreground pl-2">
+                      {testResult.ultrasonic.distance.toFixed(1)}cm
+                      {testResult.ultrasonic.maxAllowed !== undefined && (
+                        <span> (max: {testResult.ultrasonic.maxAllowed}cm)</span>
+                      )}
+                    </p>
+                  )}
+                  {!testResult.ultrasonic.passed && (
+                    <p className="text-xs text-destructive pl-2">{testResult.ultrasonic.message}</p>
+                  )}
                 </div>
               </div>
             </div>
-
-            {testResult.details && (
-              <div className="mt-3 p-3 bg-muted/30 rounded-md">
-                <p className="text-sm text-muted-foreground">{testResult.details}</p>
-              </div>
-            )}
           </CollapsibleContent>
         )}
       </Collapsible>
