@@ -75,17 +75,34 @@ export type WaterTank = z.infer<typeof waterTankSchema>;
 
 // ===== System Test Result Schema =====
 
+// ESP32 sends detailed test results
 export const systemTestResultSchema = z.object({
   timestamp: z.number(),
-  overallStatus: z.enum(["passed", "warning", "failed"]),
-  sensorTests: z.object({
-    moistureSensors: z.array(z.boolean()).length(4),
-    dht11: z.boolean(),
-    ultrasonic: z.boolean(),
+  overall: z.boolean(),
+  moistureSensors: z.array(z.object({
+    passed: z.boolean(),
+    moistureBefore: z.number().optional(),
+    moistureAfter: z.number().optional(),
+    message: z.string(),
+  })),
+  pumps: z.array(z.object({
+    passed: z.boolean(),
+    moistureBefore: z.number().optional(),
+    moistureAfter: z.number().optional(),
+    message: z.string(),
+  })),
+  dht11: z.object({
+    passed: z.boolean(),
+    temperature: z.number().optional(),
+    humidity: z.number().optional(),
+    message: z.string(),
   }),
-  pumpTests: z.array(z.boolean()).length(4),
-  connectivityTest: z.boolean(),
-  details: z.string().optional(),
+  ultrasonic: z.object({
+    passed: z.boolean(),
+    distance: z.number().optional(),
+    maxAllowed: z.number().optional(),
+    message: z.string(),
+  }),
 });
 
 export type SystemTestResult = z.infer<typeof systemTestResultSchema>;
