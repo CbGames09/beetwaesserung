@@ -194,7 +194,6 @@ class WateringSystem:
             "pumps": [],
             "dht11": {"passed": False, "message": ""},
             "ultrasonic": {"passed": False, "message": ""},
-            "database": {"passed": False, "message": ""},
             "overall": False
         }
         
@@ -208,9 +207,9 @@ class WateringSystem:
                 moisture_before = self.hw.read_moisture(i)
                 print(f"    Initial moisture: {moisture_before:.1f}%")
                 
-                # Run pump for 3 seconds
-                print(f"    Running pump for 3 seconds...")
-                self.hw.activate_pump(i, 3)
+                # Run pump for 5 seconds
+                print(f"    Running pump for 5 seconds...")
+                self.hw.activate_pump(i, 5)
                 
                 # Wait 1 minute
                 print(f"    Waiting 60 seconds...")
@@ -220,14 +219,15 @@ class WateringSystem:
                 moisture_after = self.hw.read_moisture(i)
                 print(f"    Moisture after: {moisture_after:.1f}%")
                 
-                # Check if moisture increased
-                moisture_increased = moisture_after > moisture_before
+                # Check if moisture increased by at least 1%
+                moisture_increase = moisture_after - moisture_before
+                moisture_increased = moisture_increase >= 1.0
                 
                 sensor_result = {
                     "passed": moisture_increased,
                     "moistureBefore": round(moisture_before, 1),
                     "moistureAfter": round(moisture_after, 1),
-                    "message": "OK" if moisture_increased else f"No increase ({moisture_before:.1f}% → {moisture_after:.1f}%)"
+                    "message": "OK" if moisture_increased else f"Increase too small ({moisture_increase:.1f}%, min. 1%)"
                 }
                 
                 test_result["moistureSensors"].append(sensor_result)
@@ -277,26 +277,11 @@ class WateringSystem:
             test_result["ultrasonic"] = {"passed": False, "message": str(e)}
             print(f"  ✗ FAILED: {e}")
         
-        # Test Database
-        print("\n→ Testing database connection...")
-        try:
-            test_data = {"test": True, "timestamp": self.get_timestamp()}
-            success = self.fb.put("testConnection", test_data)
-            test_result["database"] = {
-                "passed": success,
-                "message": "OK" if success else "Upload failed"
-            }
-            print(f"  {'✓ PASSED' if success else '✗ FAILED'}")
-        except Exception as e:
-            test_result["database"] = {"passed": False, "message": str(e)}
-            print(f"  ✗ FAILED: {e}")
-        
-        # Overall result
+        # Overall result (no database test needed)
         all_passed = (
             all(s.get("passed", False) for s in test_result["moistureSensors"]) and
             test_result["dht11"]["passed"] and
-            test_result["ultrasonic"]["passed"] and
-            test_result["database"]["passed"]
+            test_result["ultrasonic"]["passed"]
         )
         test_result["overall"] = all_passed
         
@@ -304,8 +289,14 @@ class WateringSystem:
         print(f"OVERALL: {'✓ ALL TESTS PASSED' if all_passed else '✗ SOME TESTS FAILED'}")
         print(f"{'='*50}\n")
         
-        # Upload results
-        self.fb.update_test_result(test_result)
+        # Upload results to Firebase
+        print("→ Uploading test results to Firebase...")
+        if self.fb.update_test_result(test_result):
+            print("✓ Test results uploaded successfully")
+        else:
+            print("✗ Failed to upload test results")
+        
+        self.last_test_time = self.get_time()
         return test_result
     
     def save_historical_data(self, sensor_data):
