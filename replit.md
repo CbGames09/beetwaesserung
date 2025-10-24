@@ -11,12 +11,17 @@ MVP (Minimum Viable Product) - Vollständig implementiert:
 - ✅ Umfassende Hardware-Dokumentation und Verkabelungsdiagramm
 - ✅ Deployment-Anleitung für GitHub Pages
 
-Erweiterte Features - In Entwicklung:
-- ✅ Historische Datenspeicherung und Visualisierung (Recharts)
+Erweiterte Features - Vollständig implementiert:
+- ✅ Historische Datenspeicherung und Visualisierung (Recharts) - Stündlich, 30 Tage Retention
 - ✅ E-Mail-Benachrichtigungen für kritische Ereignisse
 - ✅ Saisonale Pflanzenprofile mit automatischer Schwellwert-Anpassung
 - ✅ Robuste NTP-Synchronisation (4 Server, Auto-Fallback)
 - ✅ Hardware-Fehler auf Website sichtbar (NTP, E-Ink Display)
+- ✅ ESP32 WiFi Auto-Reconnect (non-blocking, 30s Intervall)
+- ✅ Firebase Retry-Logik (3 Versuche, exponential backoff)
+- ✅ Modulare ESP32-Architektur (5 separate Python-Module)
+
+Features in Entwicklung:
 - ⏳ CSV-Datenexport
 - ⏳ Progressive Web App (PWA) mit Offline-Funktionalität
 
@@ -53,6 +58,13 @@ Dieses Projekt ist ein IoT-basiertes automatisches Bewässerungssystem für 3-4 
 - 4-Kanal Relais mit 4 Pumpen
 - Waveshare 1.54" E-Ink Display (200x200, 3-Farben)
 
+### ESP32 Software-Architektur (Modular)
+- **main.py** - Hauptprogramm mit robuster Main-Loop
+- **hardware.py** - Hardware Controller (Sensoren, Pumpen)
+- **wifi_manager.py** - WiFi Management mit Auto-Reconnect
+- **firebase_client.py** - Firebase Client mit Retry-Logik
+- **ntp_sync.py** - NTP Synchronization mit Multi-Server Fallback
+
 ## Projekt-Struktur
 
 ```
@@ -81,7 +93,15 @@ Dieses Projekt ist ein IoT-basiertes automatisches Bewässerungssystem für 3-4 
 │   └── index.html
 ├── shared/
 │   └── schema.ts          # Gemeinsame TypeScript Schemas
-├── esp32/                 # ESP32 MicroPython Code (wird noch erstellt)
+├── esp32/                 # ESP32 MicroPython Code (MODULAR)
+│   ├── main.py           # Hauptprogramm
+│   ├── hardware.py       # Hardware Controller
+│   ├── wifi_manager.py   # WiFi Management
+│   ├── firebase_client.py # Firebase Client
+│   ├── ntp_sync.py       # NTP Synchronization
+│   ├── config.example.py  # Config Template (KEINE SECRETS!)
+│   ├── .gitignore        # Verhindert Commit von config.py
+│   └── README_MODULES.md # ESP32-Dokumentation
 └── design_guidelines.md   # Design System Dokumentation
 ```
 
@@ -139,7 +159,8 @@ firebase-realtime-database/
 ├── settings/             # Systemeinstellungen
 ├── systemStatus/         # Online-Status, Display-Status
 ├── lastTest/            # Letztes Selbsttest-Ergebnis
-└── manualWatering/      # Manuelle Bewässerungsbefehle
+├── manualWatering/      # Manuelle Bewässerungsbefehle
+└── historicalData/      # Historische Daten (stündlich, 30 Tage)
 ```
 
 ## Environment Variables
@@ -183,12 +204,25 @@ Das Design-System basiert auf Material Design Prinzipien für IoT-Dashboards:
 
 Details siehe `design_guidelines.md`
 
-## Hardware Troubleshooting
+## ESP32 Setup & Troubleshooting
 
-Bei Hardware-Problemen siehe `esp32/TROUBLESHOOTING.md`:
+### Erste Inbetriebnahme:
+1. Kopiere `esp32/config.example.py` nach `esp32/config.py`
+2. Trage deine WiFi-Credentials und Firebase-URL ein
+3. Lade alle Module auf den ESP32 hoch (siehe `esp32/README_MODULES.md`)
+4. Starte den ESP32 - System läuft automatisch!
+
+### Robustheit:
+- **WiFi-Probleme**: Auto-Reconnect alle 30 Sekunden (non-blocking)
+- **Firebase-Timeouts**: Retry-Logik (3 Versuche, exponential backoff)
 - **NTP Timeout**: Versucht automatisch 4 Server, Fehler auf Website sichtbar
 - **E-Ink Display**: Detaillierte Diagnostik, Fehler auf Website sichtbar
-- **Robustes System**: Läuft weiter auch wenn Hardware fehlschlägt
+- **Kein Aufhängen**: System läuft weiter auch bei Errors
+
+### Wichtige Sicherheitshinweise:
+- ⚠️ **NIEMALS** `config.py` mit echten Credentials committen!
+- ⚠️ Nutze nur `config.example.py` als Template (enthält Placeholders)
+- ⚠️ `config.py` ist in `.gitignore` und wird nicht versioniert
 
 ## Spezielle Features
 
