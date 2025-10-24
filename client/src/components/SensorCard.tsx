@@ -20,15 +20,15 @@ export function SensorCard({
 }: SensorCardProps) {
   return (
     <Card className={`p-6 ${className}`}>
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center justify-center space-x-4">
         <div className="p-3 rounded-lg bg-primary/10">
           <Icon className="h-8 w-8 text-primary" strokeWidth={1.5} />
         </div>
-        <div className="flex-1">
+        <div className="flex-1 text-center">
           <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
             {label}
           </p>
-          <div className="flex items-baseline space-x-2 mt-1">
+          <div className="flex items-baseline justify-center space-x-2 mt-1">
             <span className="text-3xl font-mono font-semibold" data-testid={testId}>
               {value}
             </span>

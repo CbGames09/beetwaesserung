@@ -11,16 +11,16 @@ export function WaterTankCard({ waterLevelCm, tankConfig }: WaterTankCardProps) 
   // Berechnung nach Benutzer-Vorgabe:
   // Aktuelle Wassermenge = (höhe - waterlevelcm) * (d/2)² * π
   const radius = tankConfig.diameter / 2;
-  const waterHeight = tankConfig.height - waterLevelCm;
-  const currentVolumeCm3 = waterHeight * radius * radius * Math.PI;
-  const currentVolume = (currentVolumeCm3 / 1000).toFixed(1);
+  const waterHeight = Math.max(0, tankConfig.height - waterLevelCm); // Keine negativen Werte!
+  const currentVolumeCm3 = Math.max(0, waterHeight * radius * radius * Math.PI);
+  const currentVolume = Math.max(0, currentVolumeCm3 / 1000).toFixed(1);
   
   // Gefäßgröße = höhe * (d/2)² * π
   const maxVolumeCm3 = tankConfig.height * radius * radius * Math.PI;
   const maxVolume = (maxVolumeCm3 / 1000).toFixed(1);
   
-  // Prozent der verbleibenden Wassermenge
-  const waterLevelPercent = (currentVolumeCm3 / maxVolumeCm3) * 100;
+  // Prozent der verbleibenden Wassermenge (mindestens 0%)
+  const waterLevelPercent = Math.max(0, Math.min(100, (currentVolumeCm3 / maxVolumeCm3) * 100));
   const waterLevel = waterLevelPercent.toFixed(1);
 
   const getStatusColor = () => {

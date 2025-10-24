@@ -7,13 +7,15 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { Droplet, Thermometer, Wind, Clock } from "lucide-react";
 import { fetchHistoricalData, downsampleData, type TimeRangeKey, TIME_RANGES } from "@/lib/historicalData";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { SystemSettings } from "@shared/schema";
 
 interface HistoryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  settings?: SystemSettings;
 }
 
-export function HistoryDialog({ open, onOpenChange }: HistoryDialogProps) {
+export function HistoryDialog({ open, onOpenChange, settings }: HistoryDialogProps) {
   const [timeRange, setTimeRange] = useState<TimeRangeKey>("24h");
   const [activeTab, setActiveTab] = useState<string>("moisture");
 
@@ -37,6 +39,9 @@ export function HistoryDialog({ open, onOpenChange }: HistoryDialogProps) {
     }
   };
 
+  // Get plant names from settings
+  const plantNames = settings?.plantProfiles.map(p => p.name) || ['Pflanze 1', 'Pflanze 2', 'Pflanze 3', 'Pflanze 4'];
+
   const chartData = data.map(item => ({
     timestamp: item.timestamp,
     time: formatDate(item.timestamp),
@@ -46,7 +51,6 @@ export function HistoryDialog({ open, onOpenChange }: HistoryDialogProps) {
     plant4: item.plantMoisture[3],
     temperature: item.temperature,
     humidity: item.humidity,
-    waterLevel: item.waterLevel,
   }));
 
   return (
@@ -102,18 +106,14 @@ export function HistoryDialog({ open, onOpenChange }: HistoryDialogProps) {
           {/* Charts */}
           {!isLoading && !error && data.length > 0 && (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-3" data-testid="tabs-history">
+              <TabsList className="grid w-full grid-cols-2" data-testid="tabs-history">
                 <TabsTrigger value="moisture" data-testid="tab-moisture">
                   <Droplet className="h-4 w-4 mr-2" />
                   Bodenfeuchtigkeit
                 </TabsTrigger>
                 <TabsTrigger value="temperature" data-testid="tab-temperature">
                   <Thermometer className="h-4 w-4 mr-2" />
-                  Temperatur
-                </TabsTrigger>
-                <TabsTrigger value="humidity" data-testid="tab-humidity">
-                  <Wind className="h-4 w-4 mr-2" />
-                  Luftfeuchtigkeit
+                  Temperatur & Luftfeuchtigkeit
                 </TabsTrigger>
               </TabsList>
 
@@ -127,7 +127,6 @@ export function HistoryDialog({ open, onOpenChange }: HistoryDialogProps) {
                       tick={{ fill: "hsl(var(--foreground))" }}
                     />
                     <YAxis 
-                      domain={[0, 100]}
                       className="text-xs"
                       tick={{ fill: "hsl(var(--foreground))" }}
                       label={{ value: '%', position: 'insideLeft' }}
@@ -145,7 +144,7 @@ export function HistoryDialog({ open, onOpenChange }: HistoryDialogProps) {
                       type="monotone" 
                       dataKey="plant1" 
                       stroke="hsl(var(--chart-1))" 
-                      name="Pflanze 1"
+                      name={plantNames[0]}
                       strokeWidth={2}
                       dot={false}
                     />
@@ -153,7 +152,7 @@ export function HistoryDialog({ open, onOpenChange }: HistoryDialogProps) {
                       type="monotone" 
                       dataKey="plant2" 
                       stroke="hsl(var(--chart-2))" 
-                      name="Pflanze 2"
+                      name={plantNames[1]}
                       strokeWidth={2}
                       dot={false}
                     />
@@ -161,7 +160,7 @@ export function HistoryDialog({ open, onOpenChange }: HistoryDialogProps) {
                       type="monotone" 
                       dataKey="plant3" 
                       stroke="hsl(var(--chart-3))" 
-                      name="Pflanze 3"
+                      name={plantNames[2]}
                       strokeWidth={2}
                       dot={false}
                     />
@@ -169,7 +168,7 @@ export function HistoryDialog({ open, onOpenChange }: HistoryDialogProps) {
                       type="monotone" 
                       dataKey="plant4" 
                       stroke="hsl(var(--chart-4))" 
-                      name="Pflanze 4"
+                      name={plantNames[3]}
                       strokeWidth={2}
                       dot={false}
                       strokeDasharray="5 5"
@@ -177,6 +176,7 @@ export function HistoryDialog({ open, onOpenChange }: HistoryDialogProps) {
                   </LineChart>
                 </ResponsiveContainer>
               </TabsContent>
+
 
               <TabsContent value="temperature" className="space-y-4">
                 <ResponsiveContainer width="100%" height={300}>
@@ -188,10 +188,18 @@ export function HistoryDialog({ open, onOpenChange }: HistoryDialogProps) {
                       tick={{ fill: "hsl(var(--foreground))" }}
                     />
                     <YAxis 
+                      yAxisId="temp"
                       className="text-xs"
                       tick={{ fill: "hsl(var(--foreground))" }}
                       label={{ value: '°C', position: 'insideLeft' }}
                     />
+                    <YAxis 
+                      yAxisId="humidity"
+                      orientation="right"
+                      className="text-xs"
+                      tick={{ fill: "hsl(var(--foreground))" }}
+                      label={{ value: '%', position: 'insideRight' }}
+                    />
                     <Tooltip 
                       contentStyle={{
                         backgroundColor: "hsl(var(--card))",
@@ -202,57 +210,22 @@ export function HistoryDialog({ open, onOpenChange }: HistoryDialogProps) {
                     />
                     <Legend />
                     <Line 
+                      yAxisId="temp"
                       type="monotone" 
                       dataKey="temperature" 
                       stroke="hsl(var(--chart-5))" 
-                      name="Temperatur"
+                      name="Temperatur (°C)"
                       strokeWidth={2}
                       dot={false}
                     />
-                  </LineChart>
-                </ResponsiveContainer>
-              </TabsContent>
-
-              <TabsContent value="humidity" className="space-y-4">
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis 
-                      dataKey="time" 
-                      className="text-xs"
-                      tick={{ fill: "hsl(var(--foreground))" }}
-                    />
-                    <YAxis 
-                      domain={[0, 100]}
-                      className="text-xs"
-                      tick={{ fill: "hsl(var(--foreground))" }}
-                      label={{ value: '%', position: 'insideLeft' }}
-                    />
-                    <Tooltip 
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                      }}
-                      labelStyle={{ color: "hsl(var(--foreground))" }}
-                    />
-                    <Legend />
                     <Line 
+                      yAxisId="humidity"
                       type="monotone" 
                       dataKey="humidity" 
                       stroke="hsl(var(--chart-1))" 
-                      name="Luftfeuchtigkeit"
+                      name="Luftfeuchtigkeit (%)"
                       strokeWidth={2}
                       dot={false}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="waterLevel" 
-                      stroke="hsl(var(--chart-2))" 
-                      name="Wassertank"
-                      strokeWidth={2}
-                      dot={false}
-                      strokeDasharray="5 5"
                     />
                   </LineChart>
                 </ResponsiveContainer>
