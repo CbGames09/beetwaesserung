@@ -105,15 +105,31 @@ export async function seedDemoData() {
 
     const demoTestResult: SystemTestResult = {
       timestamp: Date.now() - 2 * 24 * 60 * 60 * 1000, // 2 days ago
-      overallStatus: "passed",
-      sensorTests: {
-        moistureSensors: [true, true, true, true],
-        dht11: true,
-        ultrasonic: true,
+      overall: true,
+      moistureSensors: [
+        { passed: true, moistureBefore: 35.5, moistureAfter: 42.3, message: "OK" },
+        { passed: true, moistureBefore: 32.1, moistureAfter: 39.8, message: "OK" },
+        { passed: true, moistureBefore: 38.7, moistureAfter: 45.2, message: "OK" },
+        { passed: true, moistureBefore: 31.0, moistureAfter: 38.5, message: "OK" },
+      ],
+      pumps: [
+        { passed: true, moistureBefore: 35.5, moistureAfter: 42.3, message: "OK" },
+        { passed: true, moistureBefore: 32.1, moistureAfter: 39.8, message: "OK" },
+        { passed: true, moistureBefore: 38.7, moistureAfter: 45.2, message: "OK" },
+        { passed: true, moistureBefore: 31.0, moistureAfter: 38.5, message: "OK" },
+      ],
+      dht11: {
+        passed: true,
+        temperature: 23.5,
+        humidity: 45.2,
+        message: "OK"
       },
-      pumpTests: [true, true, true, true],
-      connectivityTest: true,
-      details: "Alle Tests erfolgreich abgeschlossen",
+      ultrasonic: {
+        passed: true,
+        distance: 12.3,
+        maxAllowed: 35,
+        message: "OK"
+      },
     };
 
     const demoSystemStatus: SystemStatus = {
