@@ -1,0 +1,7 @@
+Init display ...
+Display refresh ...
+Traceback (most recent call last):
+  File "<stdin>", line 25, in <module>
+  File "epaper1in54b.py", line 189, in display_frame
+  File "epaper1in54b.py", line 144, in wait_until_idle
+NameError: name 'TimeoutError' isn't defined
