@@ -166,7 +166,7 @@ export const defaultNotificationSettings: NotificationSettings = {
 };
 
 export const defaultSystemSettings: SystemSettings = {
-  pin: import.meta.env.VITE_DEFAULT_PIN || "0000", // Fallback nur für Dev-Umgebung
+  pin: import.meta.env.VITE_DEFAULT_PIN || "0000", // Set via VITE_DEFAULT_PIN secret (Replit/GitHub)
   measurementInterval: 300, // 5 minutes
   numberOfPlants: 3,
   waterTank: {
