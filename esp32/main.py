@@ -16,11 +16,11 @@ from ntp_sync import NTPSync
 
 # WiFi Configuration
 # ⚠️ WICHTIG: Ersetze diese Platzhalter mit deinen echten Zugangsdaten!
-WIFI_SSID = "FRITZ!Box 6660 Cable QE"
-WIFI_PASSWORD = "88032708905648603447"
+WIFI_SSID = ""
+WIFI_PASSWORD = ""
 
 # Firebase Configuration
-FIREBASE_URL = "https://beetwaesserung-c20c2-default-rtdb.europe-west1.firebasedatabase.app" 
+FIREBASE_URL = "" 
 
 # Hardware Configuration
 CONFIG = {
