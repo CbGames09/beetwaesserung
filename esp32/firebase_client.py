@@ -74,13 +74,12 @@ class FirebaseClient:
         return result is not None
     
     def log_error(self, error_type, component, message, severity="error"):
-        """Log error to Firebase (best effort - no retries)"""
+        """Log error to Firebase (single attempt - no retries for bandwidth saving)"""
         try:
             if not self.system:
                 return
             
             self.error_count += 1
-            existing_errors = self.get("systemErrors") or {}
             
             now_ms = self.system.get_timestamp()
             error_key = f"error_{int(now_ms/1000)}_{self.error_count}"
@@ -94,18 +93,8 @@ class FirebaseClient:
                 "resolved": False
             }
             
-            existing_errors[error_key] = error_data
-            
-            # Keep only the 10 newest
-            if len(existing_errors) > 10:
-                sorted_errors = sorted(
-                    existing_errors.items(),
-                    key=lambda x: x[1].get("timestamp", 0),
-                    reverse=True
-                )[:10]
-                existing_errors = dict(sorted_errors)
-            
-            self.put("systemErrors", existing_errors)
+            # POST to create new error entry (atomic, no read needed)
+            self.post("systemErrors", error_data)
         except Exception as e:
             print(f"✗ Failed to log error to Firebase: {e}")
     
@@ -123,22 +112,66 @@ class FirebaseClient:
         return self.get("settings")
     
     def get_manual_watering(self):
-        """Check for manual watering commands"""
-        return self.get("manualWatering")
+        """Check for manual watering commands (single attempt)"""
+        try:
+            url = f"{self.base_url}/manualWatering.json"
+            response = requests.get(url)
+            try:
+                result = response.json() if response.text else None
+                response.close()
+                return result
+            except:
+                if response:
+                    response.close()
+                return None
+        except Exception as e:
+            print(f"  ⚠ Firebase GET error: {e}")
+            return None
     
     def clear_manual_watering(self):
-        """Clear manual watering command"""
-        return self.put("manualWatering", None)
+        """Clear manual watering command (single attempt)"""
+        try:
+            url = f"{self.base_url}/manualWatering.json"
+            response = requests.put(url, data=json.dumps(None), headers={'Content-Type': 'application/json'})
+            try:
+                response.close()
+                return True
+            except:
+                return False
+        except:
+            return False
     
     def get_manual_test_trigger(self):
-        """Check for manual test trigger"""
-        return self.get("manualTest")
+        """Check for manual test trigger (single attempt)"""
+        try:
+            url = f"{self.base_url}/manualTest.json"
+            response = requests.get(url)
+            try:
+                result = response.json() if response.text else None
+                response.close()
+                return result
+            except:
+                if response:
+                    response.close()
+                return None
+        except Exception as e:
+            print(f"  ⚠ Firebase GET error: {e}")
+            return None
     
     def clear_manual_test_trigger(self):
-        """Clear manual test trigger"""
-        if not self.system:
+        """Clear manual test trigger (single attempt)"""
+        try:
+            if not self.system:
+                return False
+            url = f"{self.base_url}/manualTest.json"
+            response = requests.put(url, data=json.dumps({"trigger": False, "timestamp": self.system.get_timestamp()}), headers={'Content-Type': 'application/json'})
+            try:
+                response.close()
+                return True
+            except:
+                return False
+        except:
             return False
-        return self.put("manualTest", {"trigger": False, "timestamp": self.system.get_timestamp()})
     
     def update_test_result(self, result):
         """Update test result in Firebase"""

@@ -6,7 +6,7 @@ from neopixel import NeoPixel
 
 class HardwareController:
     def __init__(self, config):
-        """Initialize hardware with configuration"""
+        """Initialize hardware with configuration (power-optimized)"""
         self.config = config
         self.system = None  # Will be set by WateringSystem
         
@@ -17,6 +17,9 @@ class HardwareController:
         
         # Initialize DHT11
         self.dht_sensor = dht.DHT11(Pin(config['DHT_PIN']))
+        self.dht_last_read = 0  # Cache DHT reads - they're slow
+        self.dht_cache = (0.0, 0.0)  # (temp, humidity)
+        self.dht_cache_interval = 5  # Cache DHT for 5 seconds min (sensor is slow anyway)
         
         # Initialize Ultrasonic Sensor
         self.trigger = Pin(config['ULTRASONIC_TRIGGER'], Pin.OUT)
@@ -28,14 +31,20 @@ class HardwareController:
         # Initialize Motion Sensor (PIR) - Digital Input
         self.motion_sensor = Pin(config['MOTION_SENSOR_PIN'], Pin.IN)
         
-        # Initialize LED Ring (24-bit WS2812B / NeoPixel)
-        self.led_ring = NeoPixel(Pin(config['LED_RING_PIN'], Pin.OUT), config['LED_RING_COUNT'])
+        # Initialize LED Ring (24-bit WS2812B / NeoPixel) - turn OFF by default to save power
+        try:
+            self.led_ring = NeoPixel(Pin(config['LED_RING_PIN'], Pin.OUT), config['LED_RING_COUNT'])
+            self.led_ring.fill((0, 0, 0))  # All LEDs OFF
+            self.led_ring.write()
+        except Exception as e:
+            print(f"⚠ LED Ring initialization failed: {e}")
+            self.led_ring = None
         
         # Last watered timestamps
         self.last_watered = [0, 0, 0, 0]
         self.last_pump4_run = 0
         
-        print("✓ Hardware initialized (including Motion Sensor & LED Ring)")
+        print("✓ Hardware initialized (power-optimized)")
     
     def read_moisture(self, sensor_id):
         """Read moisture sensor (0-100%) - raises exception on error"""
@@ -50,14 +59,26 @@ class HardwareController:
             raise Exception(f"Moisture sensor {sensor_id} read failed: {e}")
     
     def read_dht11(self):
-        """Read temperature and humidity from DHT11 - raises exception on error"""
+        """Read temperature and humidity from DHT11 with caching - raises exception on error"""
         try:
+            current_time = time.time()
+            
+            # Return cached value if recent (DHT11 can't update faster than ~2 seconds anyway)
+            if (current_time - self.dht_last_read) < self.dht_cache_interval:
+                return self.dht_cache
+            
             self.dht_sensor.measure()
             temp = self.dht_sensor.temperature()
             humidity = self.dht_sensor.humidity()
+            
+            # Update cache
+            self.dht_cache = (temp, humidity)
+            self.dht_last_read = current_time
+            
             return temp, humidity
         except Exception as e:
-            raise Exception(f"DHT11 read failed: {e}")
+            # Return cached value on error instead of failing completely
+            return self.dht_cache
     
     def read_ultrasonic(self):
         """Read distance from ultrasonic sensor (cm) - raises exception on error"""

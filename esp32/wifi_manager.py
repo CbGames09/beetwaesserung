@@ -57,7 +57,9 @@ class WiFiManager:
         return True
     
     def disconnect(self):
-        """Disconnect from WiFi"""
+        """Disconnect from WiFi and disable radio to save power"""
         if self.wlan.isconnected():
             self.wlan.disconnect()
-            print("✓ WiFi disconnected")
+        # Disable WiFi radio completely to save power
+        self.wlan.active(False)
+        print("✓ WiFi disconnected and radio disabled")

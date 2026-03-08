@@ -2,7 +2,7 @@
 # MicroPython Implementation - Modular & Robust Version
 
 import time
-from machine import Pin
+from machine import Pin, deepsleep
 
 # Import our modules
 from hardware import HardwareController
@@ -66,6 +66,8 @@ class WateringSystem:
         self.last_test_time = 0
         self.test_interval = 7 * 24 * 60 * 60  # 7 days
         self.last_historical_save = 0  # Track when we last saved historical data
+        self.settings_load_time = 0  # Track when settings were last loaded
+        self.settings_cache_interval = 3600  # Reload settings only every hour (3600s)
         
         # Connect modules
         self.hw.system = self
@@ -79,13 +81,20 @@ class WateringSystem:
         """Get current UTC time in seconds"""
         return self.ntp.get_time()
     
-    def load_settings(self):
-        """Load settings from Firebase (with error handling)"""
+    def load_settings(self, force=False):
+        """Load settings from Firebase (with error handling and caching)"""
+        current_time = self.get_time()
+        
+        # Only reload if forced or cache expired
+        if not force and self.settings and (current_time - self.settings_load_time) < self.settings_cache_interval:
+            return True
+        
         try:
             print("→ Loading settings from Firebase")
             settings = self.fb.get_settings()
             if settings:
                 self.settings = settings
+                self.settings_load_time = current_time
                 print(f"✓ Settings loaded: {settings['numberOfPlants']} plants")
                 return True
             else:
@@ -322,7 +331,7 @@ class WateringSystem:
                 print(f"✗ Historical data save error: {e}")
     
     def run(self):
-        """Main system loop - robust and fault-tolerant"""
+        """Main system loop - robust and fault-tolerant with power optimization"""
         print("\n" + "="*50)
         print("STARTING WATERING SYSTEM")
         print("="*50 + "\n")
@@ -337,7 +346,10 @@ class WateringSystem:
             else:
                 self.fb.log_error("ntp", "NTP Sync", "All servers failed", "warning")
         
-        self.load_settings()
+        self.load_settings(force=True)
+        
+        # Disconnect WiFi to save power before entering main loop
+        self.wifi.disconnect()
         
         # Main loop
         loop_count = 0
@@ -348,35 +360,43 @@ class WateringSystem:
                 print(f"MAIN LOOP #{loop_count}")
                 print(f"{'='*50}\n")
                 
-                # ===== Step 1: Ensure WiFi Connection =====
-                if not self.wifi.ensure_connection():
-                    print("⚠ WiFi not connected - retrying in 30s...")
-                    time.sleep(30)
-                    continue  # Skip this loop iteration
-                
-                # ===== Step 2: Get measurement interval =====
-                interval = CONFIG['MEASUREMENT_INTERVAL']
-                if self.settings and 'measurementInterval' in self.settings:
-                    interval = self.settings['measurementInterval']
-                
-                # ===== Step 3: Read all sensors =====
+                # ===== Step 1: Read all sensors (WiFi OFF) =====
                 print("→ Reading sensors...")
                 sensor_data = self.read_all_sensors()
                 print(f"  Moisture: {sensor_data['plantMoisture']}")
                 print(f"  Temp: {sensor_data['temperature']}°C, Humidity: {sensor_data['humidity']}%")
                 print(f"  Water: {sensor_data['waterLevel']}%")
                 
-                # ===== Step 4: Upload to Firebase =====
+                # ===== Step 2: Auto-watering (WiFi OFF) =====
+                self.check_and_water(sensor_data)
+                
+                # ===== Step 3: Get measurement interval =====
+                interval = CONFIG['MEASUREMENT_INTERVAL']
+                if self.settings and 'measurementInterval' in self.settings:
+                    interval = self.settings['measurementInterval']
+                
+                # ===== Step 4: Enable WiFi for communication =====
+                print("→ Enabling WiFi for communication...")
+                self.wifi.connect()
+                
+                if not self.wifi.is_connected():
+                    print("⚠ WiFi not connected - will retry next cycle")
+                    self.wifi.disconnect()
+                    print(f"→ Deep sleeping for {interval} seconds...")
+                    deepsleep(int(interval * 1000))
+                    continue
+                
+                # ===== Step 5: Upload sensor data to Firebase =====
                 print("→ Uploading sensor data...")
                 if self.fb.update_sensor_data(sensor_data):
                     print("✓ Sensor data uploaded")
                 else:
                     print("⚠ Sensor data upload failed")
                 
-                # ===== Step 5: Save historical data (every hour) =====
+                # ===== Step 6: Save historical data (every hour) =====
                 self.save_historical_data(sensor_data)
                 
-                # ===== Step 6: Update system status =====
+                # ===== Step 7: Update system status =====
                 status = {
                     "online": True,
                     "lastUpdate": self.get_timestamp(),
@@ -389,19 +409,18 @@ class WateringSystem:
                 
                 self.fb.update_system_status(status)
                 
-                # ===== Step 7: Check manual commands =====
+                # ===== Step 8: Check manual commands and settings =====
                 self.check_manual_watering()
                 self.check_manual_test()
+                self.load_settings()  # Use cached version if recent
                 
-                # ===== Step 8: Auto-watering =====
-                self.check_and_water(sensor_data)
+                # ===== Step 9: Disable WiFi before sleeping =====
+                print("→ Disabling WiFi to save power...")
+                self.wifi.disconnect()
                 
-                # ===== Step 9: Reload settings =====
-                self.load_settings()
-                
-                # ===== Step 10: Sleep =====
-                print(f"→ Sleeping for {interval} seconds...")
-                time.sleep(interval)
+                # ===== Step 10: Deep Sleep =====
+                print(f"→ Deep sleeping for {interval} seconds...")
+                deepsleep(int(interval * 1000))
                 
             except KeyboardInterrupt:
                 print("\n✗ System stopped by user")
