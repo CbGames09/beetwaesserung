@@ -18,6 +18,11 @@ class WiFiManager:
     
     def connect(self, timeout=20):
         """Connect to WiFi with timeout"""
+        # Ensure radio is active (may have been disabled by disconnect())
+        if not self.wlan.active():
+            self.wlan.active(True)
+            time.sleep(0.5)  # Give radio time to start
+        
         if self.wlan.isconnected():
             print(f"✓ WiFi already connected: {self.wlan.ifconfig()[0]}")
             return True

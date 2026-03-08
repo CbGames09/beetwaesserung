@@ -90,18 +90,19 @@ class HardwareController:
             self.trigger.value(0)
             
             # Timeout after 30ms (max distance ~5m)
-            timeout = 30000
+            timeout_us = 30000
+            
+            # Wait for echo to start (go HIGH)
             pulse_start = time.ticks_us()
-            
             while self.echo.value() == 0:
-                if time.ticks_diff(time.ticks_us(), pulse_start) > timeout:
-                    raise Exception("Echo timeout (start)")
-                pulse_start = time.ticks_us()
+                if time.ticks_diff(time.ticks_us(), pulse_start) > timeout_us:
+                    raise Exception("Echo timeout (start) - sensor not responding")
             
+            # Wait for echo to end (go LOW)
             pulse_end = time.ticks_us()
             while self.echo.value() == 1:
-                if time.ticks_diff(time.ticks_us(), pulse_start) > timeout:
-                    raise Exception("Echo timeout (end)")
+                if time.ticks_diff(time.ticks_us(), pulse_end) > timeout_us:
+                    raise Exception("Echo timeout (end) - sensor echo stuck")
                 pulse_end = time.ticks_us()
             
             pulse_duration = time.ticks_diff(pulse_end, pulse_start)
