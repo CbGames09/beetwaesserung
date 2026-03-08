@@ -2,8 +2,7 @@
 # MicroPython Implementation - Modular & Robust Version
 
 import time
-from machine import Pin, SPI
-from epaper1in54b import EPD
+from machine import Pin
 
 # Import our modules
 from hardware import HardwareController
@@ -39,15 +38,6 @@ CONFIG = {
     # Relay Pins (for pumps)
     'RELAY_PINS': [5, 6, 7, 8],
     
-    # E-Ink Display Configuration
-    'ENABLE_EINK_DISPLAY': True,
-    'EINK_MOSI': 38,
-    'EINK_CLK': 48,
-    'EINK_CS': 21,
-    'EINK_DC': 18,
-    'EINK_RST': 14,
-    'EINK_BUSY': 46,
-    
     # System Configuration
     'MEASUREMENT_INTERVAL': 300,  # 5 minutes default
     'WATERING_DURATION': 5,  # seconds
@@ -59,17 +49,15 @@ CONFIG = {
 # =============================================================================
 
 class WateringSystem:
-    def __init__(self, hardware, wifi, firebase, ntp, eink_display=None):
+    def __init__(self, hardware, wifi, firebase, ntp):
         self.hw = hardware
         self.wifi = wifi
         self.fb = firebase
         self.ntp = ntp
-        self.eink = eink_display
         
         self.settings = None
         self.last_test_time = 0
         self.test_interval = 7 * 24 * 60 * 60  # 7 days
-        self.last_display_status = None
         self.last_historical_save = 0  # Track when we last saved historical data
         
         # Connect modules
@@ -326,55 +314,6 @@ class WateringSystem:
             except Exception as e:
                 print(f"✗ Historical data save error: {e}")
     
-    def update_display(self, sensor_data):
-        """Update E-Ink display if status changed"""
-        if not self.eink:
-            return
-        
-        # Determine status
-        status = "ok"
-        if sensor_data['waterLevel'] < 20:
-            status = "error"
-        elif sensor_data['waterLevel'] < 40:
-            status = "warning"
-        
-        # Check if any plant needs water
-        if self.settings:
-            for i in range(self.settings['numberOfPlants']):
-                profile = self.settings['plantProfiles'][i]
-                if sensor_data['plantMoisture'][i] < profile['moistureMin']:
-                    status = "warning" if status == "ok" else status
-        
-        # Only update if changed
-        if status != self.last_display_status:
-            try:
-                print(f"→ Updating E-Ink display: {status}")
-                self.draw_status_icon(status)
-                self.last_display_status = status
-                print("✓ Display updated")
-            except Exception as e:
-                print(f"✗ Display update error: {e}")
-                self.fb.log_error("eink_display", "Display Update", str(e), "warning")
-    
-    def draw_status_icon(self, status):
-        """Draw status icon on E-Ink display"""
-        # Create frame buffers
-        frame_black = bytearray(5000)
-        frame_red = bytearray(5000)
-        
-        # Fill with white
-        for i in range(5000):
-            frame_black[i] = 0xFF
-            frame_red[i] = 0x00
-        
-        # Draw circle (center: 100,100, radius: 40)
-        if status == "ok":
-            self.eink.draw_filled_circle(frame_black, 100, 100, 40, 0)  # Black
-        else:
-            self.eink.draw_filled_circle(frame_red, 100, 100, 40, 1)  # Red
-        
-        self.eink.display_frame(frame_black, frame_red)
-    
     def run(self):
         """Main system loop - robust and fault-tolerant"""
         print("\n" + "="*50)
@@ -450,13 +389,10 @@ class WateringSystem:
                 # ===== Step 8: Auto-watering =====
                 self.check_and_water(sensor_data)
                 
-                # ===== Step 9: Update E-Ink display =====
-                self.update_display(sensor_data)
-                
-                # ===== Step 10: Reload settings =====
+                # ===== Step 9: Reload settings =====
                 self.load_settings()
                 
-                # ===== Step 11: Sleep =====
+                # ===== Step 10: Sleep =====
                 print(f"→ Sleeping for {interval} seconds...")
                 time.sleep(interval)
                 
@@ -498,40 +434,9 @@ def main():
     ntp = NTPSync()
     print("✓ NTP Sync ready\n")
     
-    # Initialize E-Ink Display (optional)
-    eink = None
-    if CONFIG['ENABLE_EINK_DISPLAY']:
-        print("→ Initializing E-Ink Display...")
-        try:
-            spi = SPI(2, baudrate=4000000, polarity=0, phase=0,
-                     sck=Pin(CONFIG['EINK_CLK']), mosi=Pin(CONFIG['EINK_MOSI']))
-            
-            cs_pin = Pin(CONFIG['EINK_CS'])
-            dc_pin = Pin(CONFIG['EINK_DC'])
-            rst_pin = Pin(CONFIG['EINK_RST'])
-            busy_pin = Pin(CONFIG['EINK_BUSY'])
-            
-            eink = EPD(spi, cs_pin, dc_pin, rst_pin, busy_pin)
-            eink.init()
-            
-            # Clear display
-            frame_black = bytearray(5000)
-            frame_red = bytearray(5000)
-            for i in range(5000):
-                frame_black[i] = 0xFF
-                frame_red[i] = 0x00
-            eink.display_frame(frame_black, frame_red)
-            
-            print("✓ E-Ink Display ready\n")
-        except Exception as e:
-            print(f"⚠ E-Ink Display failed: {e}")
-            print("  Continuing without display...\n")
-            eink = None
-            firebase.log_error("eink_display", "Init", str(e), "warning")
-    
     # Create and run system
     print("→ Starting Watering System...\n")
-    system = WateringSystem(hardware, wifi, firebase, ntp, eink)
+    system = WateringSystem(hardware, wifi, firebase, ntp)
     system.run()
 
 if __name__ == "__main__":
