@@ -9,6 +9,7 @@ from hardware import HardwareController
 from wifi_manager import WiFiManager
 from firebase_client import FirebaseClient
 from ntp_sync import NTPSync
+from motion_sensor_led import MotionSensorLED, MotionSensorInterrupt
 
 # =============================================================================
 # CONFIGURATION - UPDATE THESE VALUES
@@ -55,11 +56,13 @@ CONFIG = {
 # =============================================================================
 
 class WateringSystem:
-    def __init__(self, hardware, wifi, firebase, ntp):
+    def __init__(self, hardware, wifi, firebase, ntp, led_controller=None, motion_interrupt=None):
         self.hw = hardware
         self.wifi = wifi
         self.fb = firebase
         self.ntp = ntp
+        self.led_controller = led_controller
+        self.motion_interrupt = motion_interrupt
         
         self.settings = None
         self.last_test_time = 0
@@ -359,12 +362,19 @@ class WateringSystem:
                 print(f"MAIN LOOP #{loop_count}")
                 print(f"{'='*50}\n")
                 
-                # ===== Step 1: Get measurement interval =====
+                # ===== Step 1: Check if woke from motion sensor =====
+                was_motion_wake = False
+                if self.motion_interrupt:
+                    was_motion_wake = self.motion_interrupt.check_and_clear_motion_wake()
+                    if was_motion_wake:
+                        print("→ Wake-up triggered by motion sensor")
+                
+                # ===== Step 2: Get measurement interval =====
                 interval = CONFIG['MEASUREMENT_INTERVAL']
                 if self.settings and 'measurementInterval' in self.settings:
                     interval = self.settings['measurementInterval']
                 
-                # ===== Step 2: Enable WiFi for communication (needed for error logging) =====
+                # ===== Step 3: Enable WiFi for communication (needed for error logging) =====
                 print("→ Enabling WiFi for communication...")
                 self.wifi.connect()
                 
@@ -375,14 +385,22 @@ class WateringSystem:
                     deepsleep(int(interval * 1000))
                     continue
                 
-                # ===== Step 3: Read all sensors (WiFi ON for error logging) =====
+                # ===== Step 4: Read all sensors (WiFi ON for error logging) =====
                 print("→ Reading sensors...")
                 sensor_data = self.read_all_sensors()
                 print(f"  Moisture: {sensor_data['plantMoisture']}")
                 print(f"  Temp: {sensor_data['temperature']}°C, Humidity: {sensor_data['humidity']}%")
                 print(f"  Water: {sensor_data['waterLevel']}%")
                 
-                # ===== Step 4: Upload sensor data to Firebase =====
+                # ===== Motion-Triggered LED Display =====
+                if was_motion_wake and self.led_controller:
+                    print("→ Displaying LED sequence for motion detection...")
+                    try:
+                        self.led_controller.handle_motion_detected(sensor_data)
+                    except Exception as e:
+                        print(f"⚠ LED sequence error: {e}")
+                
+                # ===== Step 5: Upload sensor data to Firebase =====
                 print("→ Uploading sensor data...")
                 if self.fb.update_sensor_data(sensor_data):
                     print("✓ Sensor data uploaded")
@@ -418,8 +436,16 @@ class WateringSystem:
                 print("→ Checking automatic watering...")
                 self.check_and_water(sensor_data)
                 
-                # ===== Step 10: Deep Sleep =====
+                # ===== Step 10: Motion Sensor Setup =====
+                if self.led_controller and self.motion_interrupt:
+                    print("→ Setting up motion sensor for next wake-up...")
+                    # Store current sensor data for LED display if motion detected
+                    self.led_controller._last_sensor_data = sensor_data
+                    self.motion_interrupt.arm()
+                
+                # ===== Step 11: Deep Sleep =====
                 print(f"→ Deep sleeping for {interval} seconds...")
+                print("→ Motion sensor will wake system on movement")
                 deepsleep(int(interval * 1000))
                 
             except KeyboardInterrupt:
@@ -460,9 +486,30 @@ def main():
     ntp = NTPSync()
     print("✓ NTP Sync ready\n")
     
+    # Initialize Motion Sensor LED Controller (placeholder system for now)
+    print("→ Initializing Motion Sensor LED Controller...")
+    led_controller = None
+    motion_interrupt = None
+    try:
+        # Create a placeholder system object for LED initialization
+        class PlaceholderSystem:
+            settings = None
+        
+        placeholder = PlaceholderSystem()
+        led_controller = MotionSensorLED(hardware, placeholder)
+        motion_interrupt = MotionSensorInterrupt(hardware.motion_sensor)
+        print("✓ Motion Sensor LED Controller ready\n")
+    except Exception as e:
+        print(f"⚠ Motion Sensor LED initialization failed: {e}\n")
+    
     # Create and run system
     print("→ Starting Watering System...\n")
-    system = WateringSystem(hardware, wifi, firebase, ntp)
+    system = WateringSystem(hardware, wifi, firebase, ntp, led_controller, motion_interrupt)
+    
+    # Update LED controller with actual system reference
+    if led_controller:
+        led_controller.sys = system
+    
     system.run()
 
 if __name__ == "__main__":
