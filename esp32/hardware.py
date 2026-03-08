@@ -2,6 +2,7 @@
 import time
 from machine import Pin, ADC
 import dht
+from neopixel import NeoPixel
 
 class HardwareController:
     def __init__(self, config):
@@ -24,11 +25,17 @@ class HardwareController:
         # Initialize Relays (active LOW for most relay modules)
         self.relays = [Pin(pin, Pin.OUT, value=1) for pin in config['RELAY_PINS']]
         
+        # Initialize Motion Sensor (PIR) - Digital Input
+        self.motion_sensor = Pin(config['MOTION_SENSOR_PIN'], Pin.IN)
+        
+        # Initialize LED Ring (24-bit WS2812B / NeoPixel)
+        self.led_ring = NeoPixel(Pin(config['LED_RING_PIN'], Pin.OUT), config['LED_RING_COUNT'])
+        
         # Last watered timestamps
         self.last_watered = [0, 0, 0, 0]
         self.last_pump4_run = 0
         
-        print("✓ Hardware initialized")
+        print("✓ Hardware initialized (including Motion Sensor & LED Ring)")
     
     def read_moisture(self, sensor_id):
         """Read moisture sensor (0-100%) - raises exception on error"""

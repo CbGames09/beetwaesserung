@@ -38,6 +38,13 @@ CONFIG = {
     # Relay Pins (for pumps)
     'RELAY_PINS': [5, 6, 7, 8],
     
+    # Motion Sensor (PIR)
+    'MOTION_SENSOR_PIN': 11,
+    
+    # LED Ring (24-bit WS2812B / NeoPixel)
+    'LED_RING_PIN': 12,
+    'LED_RING_COUNT': 24,
+    
     # System Configuration
     'MEASUREMENT_INTERVAL': 300,  # 5 minutes default
     'WATERING_DURATION': 5,  # seconds
