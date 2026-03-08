@@ -16,12 +16,12 @@ from ntp_sync import NTPSync
 
 # WiFi Configuration
 # ⚠️ WICHTIG: Ersetze diese Platzhalter mit deinen echten Zugangsdaten!
-WIFI_SSID = "YOUR_WIFI_SSID"  # z.B. "FRITZ!Box 6660"
-WIFI_PASSWORD = "YOUR_WIFI_PASSWORD"  # z.B. "mein_passwort"
+WIFI_SSID = ""
+WIFI_PASSWORD = ""
 
 # Firebase Configuration
 # ⚠️ WICHTIG: Ersetze mit deiner Firebase URL!
-FIREBASE_URL = "https://your-project-default-rtdb.europe-west1.firebasedatabase.app"  # z.B. "https://beetwaesserung-c20c2-default-rtdb.europe-west1.firebasedatabase.app"
+FIREBASE_URL = ""  
 
 # Hardware Configuration
 CONFIG = {
@@ -360,22 +360,12 @@ class WateringSystem:
                 print(f"MAIN LOOP #{loop_count}")
                 print(f"{'='*50}\n")
                 
-                # ===== Step 1: Read all sensors (WiFi OFF) =====
-                print("→ Reading sensors...")
-                sensor_data = self.read_all_sensors()
-                print(f"  Moisture: {sensor_data['plantMoisture']}")
-                print(f"  Temp: {sensor_data['temperature']}°C, Humidity: {sensor_data['humidity']}%")
-                print(f"  Water: {sensor_data['waterLevel']}%")
-                
-                # ===== Step 2: Auto-watering (WiFi OFF) =====
-                self.check_and_water(sensor_data)
-                
-                # ===== Step 3: Get measurement interval =====
+                # ===== Step 1: Get measurement interval =====
                 interval = CONFIG['MEASUREMENT_INTERVAL']
                 if self.settings and 'measurementInterval' in self.settings:
                     interval = self.settings['measurementInterval']
                 
-                # ===== Step 4: Enable WiFi for communication =====
+                # ===== Step 2: Enable WiFi for communication (needed for error logging) =====
                 print("→ Enabling WiFi for communication...")
                 self.wifi.connect()
                 
@@ -386,17 +376,24 @@ class WateringSystem:
                     deepsleep(int(interval * 1000))
                     continue
                 
-                # ===== Step 5: Upload sensor data to Firebase =====
+                # ===== Step 3: Read all sensors (WiFi ON for error logging) =====
+                print("→ Reading sensors...")
+                sensor_data = self.read_all_sensors()
+                print(f"  Moisture: {sensor_data['plantMoisture']}")
+                print(f"  Temp: {sensor_data['temperature']}°C, Humidity: {sensor_data['humidity']}%")
+                print(f"  Water: {sensor_data['waterLevel']}%")
+                
+                # ===== Step 4: Upload sensor data to Firebase =====
                 print("→ Uploading sensor data...")
                 if self.fb.update_sensor_data(sensor_data):
                     print("✓ Sensor data uploaded")
                 else:
                     print("⚠ Sensor data upload failed")
                 
-                # ===== Step 6: Save historical data (every hour) =====
+                # ===== Step 5: Save historical data (every hour) =====
                 self.save_historical_data(sensor_data)
                 
-                # ===== Step 7: Update system status =====
+                # ===== Step 6: Update system status =====
                 status = {
                     "online": True,
                     "lastUpdate": self.get_timestamp(),
@@ -409,14 +406,18 @@ class WateringSystem:
                 
                 self.fb.update_system_status(status)
                 
-                # ===== Step 8: Check manual commands and settings =====
+                # ===== Step 7: Check manual commands and reload settings =====
                 self.check_manual_watering()
                 self.check_manual_test()
                 self.load_settings()  # Use cached version if recent
                 
-                # ===== Step 9: Disable WiFi before sleeping =====
+                # ===== Step 8: Disable WiFi before sleeping =====
                 print("→ Disabling WiFi to save power...")
                 self.wifi.disconnect()
+                
+                # ===== Step 9: Auto-watering (WiFi OFF) =====
+                print("→ Checking automatic watering...")
+                self.check_and_water(sensor_data)
                 
                 # ===== Step 10: Deep Sleep =====
                 print(f"→ Deep sleeping for {interval} seconds...")
