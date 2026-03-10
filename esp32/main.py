@@ -21,7 +21,7 @@ WIFI_SSID = ""
 WIFI_PASSWORD = ""
 
 # Firebase Configuration
-FIREBASE_URL = "" 
+FIREBASE_URL = "p" 
 
 # Hardware Configuration
 CONFIG = {
@@ -39,10 +39,10 @@ CONFIG = {
     'RELAY_PINS': [5, 6, 7, 8],
     
     # Motion Sensor (PIR)
-    'MOTION_SENSOR_PIN': 11,
+    'MOTION_SENSOR_PIN': 5,
     
     # LED Ring (24-bit WS2812B / NeoPixel)
-    'LED_RING_PIN': 12,
+    'LED_RING_PIN': 6,
     'LED_RING_COUNT': 24,
     
     # System Configuration
@@ -108,39 +108,49 @@ class WateringSystem:
     
     def read_all_sensors(self):
         """Read all sensor data with comprehensive error handling"""
-        # Read moisture sensors
+        # Initialize all variables FIRST to prevent "referenced before assignment" errors
         moisture = []
-        for i in range(4):
-            try:
-                value = self.hw.read_moisture(i)
-                moisture.append(round(value, 1))
-            except Exception as e:
-                moisture.append(0.0)
-                self.fb.log_error("sensor", f"Moisture Sensor {i+1}", str(e), "error")
-        
-        # Read DHT11
-        try:
-            temp, humidity = self.hw.read_dht11()
-            if temp == 0 and humidity == 0:
-                self.fb.log_error("sensor", "DHT11", "Returns zeros", "warning")
-        except Exception as e:
-            temp, humidity = 0.0, 0.0
-            self.fb.log_error("sensor", "DHT11", str(e), "error")
-        
-        # Read ultrasonic
-        try:
-            distance_cm = self.hw.read_ultrasonic()
-        except Exception as e:
-            distance_cm = 0.0
-            self.fb.log_error("sensor", "Ultrasonic", str(e), "error")
-        
-        # Calculate water level percentage
+        temp = 0.0
+        humidity = 0.0
+        distance_cm = 0.0
         water_level = 0.0
-        if self.settings and 'waterTank' in self.settings:
-            tank_height = self.settings['waterTank']['height']
-            water_height = tank_height - distance_cm
-            water_level = (water_height / tank_height) * 100
-            water_level = max(0, min(100, water_level))
+        
+        try:
+            # Read moisture sensors
+            for i in range(4):
+                try:
+                    value = self.hw.read_moisture(i)
+                    moisture.append(round(value, 1))
+                except Exception as e:
+                    moisture.append(0.0)
+                    self.fb.log_error("sensor", f"Moisture Sensor {i+1}", str(e), "error")
+            
+            # Read DHT11
+            try:
+                temp, humidity = self.hw.read_dht11()
+                if temp == 0 and humidity == 0:
+                    self.fb.log_error("sensor", "DHT11", "Returns zeros", "warning")
+            except Exception as e:
+                temp = 0.0
+                humidity = 0.0
+                self.fb.log_error("sensor", "DHT11", str(e), "error")
+            
+            # Read ultrasonic
+            try:
+                distance_cm = self.hw.read_ultrasonic()
+            except Exception as e:
+                distance_cm = 0.0
+                self.fb.log_error("sensor", "Ultrasonic", str(e), "error")
+            
+            # Calculate water level percentage
+            if self.settings and 'waterTank' in self.settings:
+                tank_height = self.settings['waterTank']['height']
+                water_height = tank_height - distance_cm
+                water_level = (water_height / tank_height) * 100
+                water_level = max(0, min(100, water_level))
+        
+        except Exception as e:
+            print(f"✗ Error in read_all_sensors: {e}")
         
         return {
             "timestamp": self.get_timestamp(),
@@ -356,6 +366,12 @@ class WateringSystem:
         # Main loop
         loop_count = 0
         while True:
+            # Initialize all loop variables at the beginning to prevent "referenced before assignment" errors
+            was_motion_wake = False
+            interval = CONFIG['MEASUREMENT_INTERVAL']
+            sensor_data = None
+            status = None
+            
             try:
                 loop_count += 1
                 print(f"\n{'='*50}")
@@ -446,13 +462,24 @@ class WateringSystem:
                 # ===== Step 11: Deep Sleep =====
                 print(f"→ Deep sleeping for {interval} seconds...")
                 print("→ Motion sensor will wake system on movement")
+
+                # Configure PIR as deep sleep wakeup source
+                import esp32
+                pir = self.hw.motion_sensor
+                esp32.wake_on_ext0(pin=pir, level=esp32.WAKEUP_ANY_HIGH)
+
                 deepsleep(int(interval * 1000))
                 
             except KeyboardInterrupt:
                 print("\n✗ System stopped by user")
                 break
             except Exception as e:
+                import traceback
                 print(f"\n✗ Error in main loop: {e}")
+                try:
+                    traceback.print_exc()
+                except:
+                    print("Could not print traceback")
                 print("  Continuing in 60 seconds...")
                 time.sleep(60)
 
