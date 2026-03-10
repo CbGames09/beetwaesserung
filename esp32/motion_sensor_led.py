@@ -1,12 +1,12 @@
 # Motion Sensor LED Ring Controller
 # Energy-optimized with debouncing, error handling, and fallback support
 # - Completely powers down LED after display
-# - Debounced motion detection with cooldown
+# - Debounced motion detection with cooldown (persists across deep sleep)
 # - WiFi error signaling support
 # - Graceful fallback if NeoPixel unavailable
 
 import time
-from machine import Pin, deepsleep
+from machine import Pin, deepsleep, RTC
 
 class MotionSensorLED:
     def __init__(self, hardware_controller, watering_system):
@@ -20,10 +20,14 @@ class MotionSensorLED:
         self.led_count = 24
         self.segment_leds = self.led_count // 4  # 6 LEDs per quadrant
         
-        # State tracking
-        self.last_motion_time = 0
+        # State tracking with RTC memory persistence
         self.motion_cooldown = 180  # 3 minutes in seconds
-        self.is_on_cooldown = False
+        self.rtc = RTC()
+        
+        # RTC memory layout: [last_motion_time_seconds, cooldown_active_flag]
+        # Indices 0-7 are user data in RTC
+        self._load_rtc_state()
+        
         self.motion_trigger_count_last_display = 0  # Track triggers between displays
         
         # Colors for visualization
@@ -38,7 +42,42 @@ class MotionSensorLED:
         # Last sensor data cache for LED display
         self._last_sensor_data = None
         
-        print("✓ Motion Sensor LED Controller initialized (optimized)")
+        print("✓ Motion Sensor LED Controller initialized (with persistent cooldown)")
+    
+    def _load_rtc_state(self):
+        """Load cooldown state from RTC memory (survives deep sleep)"""
+        try:
+            mem = self.rtc.memory()
+            # Read 8 bytes starting at offset 0
+            if len(mem) >= 8:
+                # Unpack last_motion_time from first 4 bytes
+                self.last_motion_time = (
+                    mem[0] << 24 | mem[1] << 16 | mem[2] << 8 | mem[3]
+                )
+                # Read cooldown flag from 5th byte
+                self.is_on_cooldown = bool(mem[4])
+            else:
+                self.last_motion_time = 0
+                self.is_on_cooldown = False
+        except Exception as e:
+            print(f"⚠ RTC load error: {e}")
+            self.last_motion_time = 0
+            self.is_on_cooldown = False
+    
+    def _save_rtc_state(self):
+        """Save cooldown state to RTC memory (survives deep sleep)"""
+        try:
+            mem = bytearray(self.rtc.memory())
+            # Write last_motion_time as 4 bytes
+            mem[0] = (self.last_motion_time >> 24) & 0xFF
+            mem[1] = (self.last_motion_time >> 16) & 0xFF
+            mem[2] = (self.last_motion_time >> 8) & 0xFF
+            mem[3] = self.last_motion_time & 0xFF
+            # Write cooldown flag as 1 byte
+            mem[4] = 1 if self.is_on_cooldown else 0
+            self.rtc.memory(mem)
+        except Exception as e:
+            print(f"⚠ RTC save error: {e}")
     
     def _hsv_to_rgb(self, h, s, v):
         """Convert HSV to RGB for better color range"""
@@ -249,24 +288,26 @@ class MotionSensorLED:
     
     def can_trigger(self):
         """Check if motion sensor can trigger (not in cooldown)
-        Ignores multiple triggers within cooldown window
+        Checks both elapsed time and cooldown flag
         """
-        current_time = time.time()
+        current_time = int(time.time())
+        
         if self.is_on_cooldown:
             elapsed = current_time - self.last_motion_time
             if elapsed >= self.motion_cooldown:
                 self.is_on_cooldown = False
+                self._save_rtc_state()
                 self.motion_trigger_count_last_display = 0
                 print("✓ Motion sensor cooldown expired")
                 return True
             else:
                 remaining = self.motion_cooldown - elapsed
-                print(f"⏳ Motion sensor cooldown: {remaining:.0f}s remaining ({self.motion_trigger_count_last_display} triggers ignored)")
+                print(f"⏳ Motion sensor on cooldown: {remaining}s remaining ({self.motion_trigger_count_last_display} triggers ignored)")
                 return False
         return True
     
     def handle_motion_detected(self, sensor_data):
-        """Handle motion detection - show LED sequence
+        """Handle motion detection - show LED sequence with current sensor data
         sensor_data: current sensor data to display
         """
         if not self.can_trigger():
@@ -278,13 +319,14 @@ class MotionSensorLED:
         print("MOTION DETECTED - DISPLAYING LED SEQUENCE")
         print("="*50 + "\n")
         
-        # Show the complete LED sequence
+        # Show the complete LED sequence with CURRENT sensor data
         success = self.show_complete_sequence(sensor_data)
         
         if success:
-            # Set cooldown
-            self.last_motion_time = time.time()
+            # Set cooldown and save to RTC (persists through deep sleep)
+            self.last_motion_time = int(time.time())
             self.is_on_cooldown = True
+            self._save_rtc_state()
             self.motion_trigger_count_last_display = 0
             print(f"✓ LED sequence complete, cooldown for {self.motion_cooldown}s\n")
             return True

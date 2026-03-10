@@ -21,7 +21,7 @@ WIFI_SSID = ""
 WIFI_PASSWORD = ""
 
 # Firebase Configuration
-FIREBASE_URL = "p" 
+FIREBASE_URL = "" 
 
 # Hardware Configuration
 CONFIG = {
@@ -408,10 +408,11 @@ class WateringSystem:
                 print(f"  Temp: {sensor_data['temperature']}°C, Humidity: {sensor_data['humidity']}%")
                 print(f"  Water: {sensor_data['waterLevel']}%")
                 
-                # ===== Motion-Triggered LED Display =====
+                # ===== Motion-Triggered LED Display with CURRENT sensor data =====
                 if was_motion_wake and self.led_controller:
-                    print("→ Displaying LED sequence for motion detection...")
+                    print("→ Motion detected - checking cooldown and displaying LED sequence...")
                     try:
+                        # Pass current sensor data so LEDs show live values
                         self.led_controller.handle_motion_detected(sensor_data)
                     except Exception as e:
                         print(f"⚠ LED sequence error: {e}")
@@ -454,9 +455,10 @@ class WateringSystem:
                 
                 # ===== Step 10: Motion Sensor Setup =====
                 if self.led_controller and self.motion_interrupt:
-                    print("→ Setting up motion sensor for next wake-up...")
-                    # Store current sensor data for LED display if motion detected
+                    print("→ Arming motion sensor for next wake-up...")
+                    # Store current sensor data as fallback (will be overwritten with fresh data on wake)
                     self.led_controller._last_sensor_data = sensor_data
+                    # Motion sensor reads RTC state to check cooldown on next wake
                     self.motion_interrupt.arm()
                 
                 # ===== Step 11: Deep Sleep =====
